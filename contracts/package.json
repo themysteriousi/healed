@@ -1,0 +1,20 @@
+{
+  "name": "ugf-contracts",
+  "version": "1.0.0",
+  "description": "Solidity contracts for the UGF Gasless NFT Badge demo",
+  "scripts": {
+    "compile": "npx hardhat compile --config hardhat.config.cjs",
+    "deploy": "npx hardhat run scripts/deploy.cjs --network baseSepolia --config hardhat.config.cjs",
+    "deploy:local": "npx hardhat run scripts/deploy.cjs --network hardhat --config hardhat.config.cjs",
+    "verify": "npx hardhat verify --network baseSepolia --config hardhat.config.cjs"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
+    "dotenv": "^16.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  },
+  "type": "module"
+}
