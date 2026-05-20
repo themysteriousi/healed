@@ -1,6 +1,6 @@
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from "wagmi";
 import { formatUnits } from "viem";
-import { baseSepolia } from "viem/chains";
+import { sepolia } from "viem/chains";
 import { MUSD_ADDRESS, MUSD_ABI, BADGE_NFT_ADDRESS, BADGE_NFT_ABI } from "../config/contracts.js";
 
 /**
@@ -12,7 +12,7 @@ export function useWallet() {
   const chainId = useChainId();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
 
-  const isCorrectChain = chainId === baseSepolia.id;
+  const isCorrectChain = chainId === sepolia.id;
   const enabled = !!address && isCorrectChain;
 
   // ETH balance (will likely be 0 – that's the point!)
@@ -36,7 +36,7 @@ export function useWallet() {
     query: { enabled },
   });
 
-  const switchToBaseSepolia = () => switchChain({ chainId: baseSepolia.id });
+  const switchToSepolia = () => switchChain({ chainId: sepolia.id });
 
   const musdBalance = musdRaw !== undefined ? formatUnits(musdRaw, 18) : null;
   const ethBalanceFormatted = ethBalance ? parseFloat(formatUnits(ethBalance.value, 18)).toFixed(4) : "0.0000";
@@ -55,7 +55,7 @@ export function useWallet() {
     ethBalanceFormatted,
     musdBalance,
     hasClaimed: hasClaimed ?? false,
-    switchToBaseSepolia,
+    switchToSepolia,
     refetchBalance,
     refetchClaimed,
   };

@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { createPublicClient, http, encodeFunctionData, parseUnits } from "viem";
-import { baseSepolia } from "viem/chains";
+import { createPublicClient, http, encodeFunctionData, parseUnits, formatUnits } from "viem";
+import { sepolia } from "viem/chains";
 import { createSmartAccountClient } from "permissionless";
 import { toSimpleSmartAccount } from "permissionless/accounts";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
@@ -10,7 +10,7 @@ import { MUSD_ADDRESS, MUSD_ABI, BADGE_NFT_ADDRESS, BADGE_NFT_ABI } from "../con
 import { createLogger } from "../utils/logger.js";
 
 const PIMLICO_KEY = import.meta.env.VITE_PIMLICO_API_KEY;
-const PIMLICO_RPC = `https://api.pimlico.io/v2/base-sepolia/rpc?apikey=${PIMLICO_KEY}`;
+const PIMLICO_RPC = `https://api.pimlico.io/v2/sepolia/rpc?apikey=${PIMLICO_KEY}`;
 const MINT_FEE = parseUnits("0.08", 18); // 0.08 MUSD
 
 // UGF pipeline step indices
@@ -62,7 +62,7 @@ export function useUGFMint() {
     try {
       // ── STEP 1 · QUOTE ──────────────────────────────────────────────────────
       setStep(STEP.QUOTE);
-      log("UGF SDK initializing on Base Sepolia…", "info", "INFO");
+      log("UGF SDK initializing on Sepolia…", "info", "INFO");
 
       const pimlicoClient = createPimlicoClient({
         transport: http(PIMLICO_RPC),
@@ -79,6 +79,43 @@ export function useUGFMint() {
       setSmartAddress(sa);
       log(`Smart Account derived: ${sa.slice(0, 8)}…${sa.slice(-6)}`, "info", "INFO");
 
+      // ── EARLY EXIT: already claimed ─────────────────────────────────────────
+      const alreadyClaimed = await publicClient.readContract({
+        address: BADGE_NFT_ADDRESS,
+        abi: BADGE_NFT_ABI,
+        functionName: "hasClaimed",
+        args: [sa],
+      });
+
+      if (alreadyClaimed) {
+        log("Badge already minted for this Smart Account – fetching token…", "success", "OK");
+        // Find the token ID owned by this smart account
+        const totalSupply = await publicClient.readContract({
+          address: BADGE_NFT_ADDRESS,
+          abi: BADGE_NFT_ABI,
+          functionName: "totalSupply",
+          args: [],
+        });
+        for (let i = 1n; i <= totalSupply; i++) {
+          try {
+            const owner = await publicClient.readContract({
+              address: BADGE_NFT_ADDRESS,
+              abi: BADGE_NFT_ABI,
+              functionName: "ownerOf",
+              args: [i],
+            });
+            if (owner.toLowerCase() === sa.toLowerCase()) {
+              setTokenId(i.toString());
+              log(`NFT Token ID #${i} already owned by your Smart Account`, "success", "OK");
+              break;
+            }
+          } catch (_) {}
+        }
+        setStep(STEP.CONFIRMED);
+        log("Zero-ETH gasless mint complete ✓", "success", "OK");
+        return;
+      }
+
       const gasPrices = await pimlicoClient.getUserOperationGasPrice();
       log(
         `Quote received · Gas sponsored by Pimlico · User pays $0.08 MUSD`,
@@ -88,11 +125,11 @@ export function useUGFMint() {
 
       const smartAccountClient = createSmartAccountClient({
         account,
-        chain: baseSepolia,
+        chain: sepolia,
         bundlerTransport: http(PIMLICO_RPC),
-        middleware: {
-          gasPrice: async () => gasPrices.fast,
-          sponsorUserOperation: pimlicoClient.sponsorUserOperation,
+        paymaster: pimlicoClient,
+        userOperation: {
+          estimateFeesPerGas: async () => gasPrices.fast,
         },
       });
 
@@ -122,20 +159,37 @@ export function useUGFMint() {
       setStep(STEP.EXECUTE);
       log("Broadcasting UserOp to Base Sepolia bundler…", "default", "CHAIN");
 
-      // Batch: approve MUSD + claimBadge in a single sponsored UserOperation
-      const userOpHash = await smartAccountClient.sendTransaction({
-        calls: [
-          { to: MUSD_ADDRESS, data: approveData, value: 0n },
-          { to: BADGE_NFT_ADDRESS, data: claimData, value: 0n },
-        ],
+      // Check if Smart Account already has enough MUSD to skip faucet
+      const saMusdBalance = await publicClient.readContract({
+        address: MUSD_ADDRESS,
+        abi: MUSD_ABI,
+        functionName: "balanceOf",
+        args: [sa],
       });
+
+      const calls = [];
+      if (saMusdBalance < MINT_FEE) {
+        log("Smart Account needs MUSD – calling faucet in batch…", "info", "INFO");
+        calls.push({
+          to: MUSD_ADDRESS,
+          data: encodeFunctionData({ abi: MUSD_ABI, functionName: "faucet", args: [] }),
+          value: 0n,
+        });
+      } else {
+        log(`Smart Account has ${formatUnits(saMusdBalance, 18)} MUSD – skipping faucet`, "info", "INFO");
+      }
+      calls.push({ to: MUSD_ADDRESS, data: approveData, value: 0n });
+      calls.push({ to: BADGE_NFT_ADDRESS, data: claimData, value: 0n });
+
+      // Batch: [optional faucet] + approve MUSD + claimBadge in one sponsored UserOperation
+      const userOpHash = await smartAccountClient.sendTransaction({ calls });
 
       log(`UserOp hash: ${userOpHash.slice(0, 14)}…`, "default", "CHAIN");
       log("Waiting for on-chain confirmation…", "default", "CHAIN");
 
       const receipt = await pimlicoClient.waitForUserOperationReceipt({
         hash: userOpHash,
-        timeout: 90_000,
+        timeout: 300_000, // 5 minutes – Sepolia can be slow
       });
 
       const confirmedTxHash = receipt.receipt.transactionHash;

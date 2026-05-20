@@ -80,6 +80,20 @@ export const BADGE_NFT_ABI = [
     outputs: [{ name: "", type: "uint256" }],
   },
   {
+    name: "totalSupply",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "ownerOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
     name: "BadgeMinted",
     type: "event",
     inputs: [

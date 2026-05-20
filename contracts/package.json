@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Solidity contracts for the UGF Gasless NFT Badge demo",
   "scripts": {
-    "compile": "npx hardhat compile --config hardhat.config.cjs",
-    "deploy": "npx hardhat run scripts/deploy.cjs --network baseSepolia --config hardhat.config.cjs",
-    "deploy:local": "npx hardhat run scripts/deploy.cjs --network hardhat --config hardhat.config.cjs",
-    "verify": "npx hardhat verify --network baseSepolia --config hardhat.config.cjs"
+    "compile": "npx hardhat compile --config hardhat.config.js",
+    "deploy": "npx hardhat run scripts/deploy.js --network sepolia --config hardhat.config.js",
+    "deploy:local": "npx hardhat run scripts/deploy.js --network hardhat --config hardhat.config.js",
+    "verify": "npx hardhat verify --network sepolia --config hardhat.config.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.2",

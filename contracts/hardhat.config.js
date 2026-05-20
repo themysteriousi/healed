@@ -8,9 +8,9 @@ export default {
     settings: { optimizer: { enabled: true, runs: 200 }, evmVersion: "cancun" },
   },
   networks: {
-    baseSepolia: {
-      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
-      chainId: 84532,
+    sepolia: {
+      url: "https://ethereum-sepolia-rpc.publicnode.com",
+      chainId: 11155111,
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]
         : [],

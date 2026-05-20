@@ -12,6 +12,7 @@
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",
     "@tanstack/react-query": "^5.100.10",
+    "ox": "^0.14.22",
     "permissionless": "^0.3.5",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

@@ -15,7 +15,7 @@ export default function WalletConnect() {
     isCorrectChain,
     isSwitching,
     ethBalanceFormatted,
-    switchToBaseSepolia,
+    switchToSepolia,
   } = useWallet();
 
   if (!isConnected) {
@@ -36,15 +36,15 @@ export default function WalletConnect() {
     return (
       <div className="space-y-2">
         <div className="rounded-lg border border-yellow-500/40 bg-yellow-950/30 px-3 py-2 text-xs text-yellow-300">
-          ⚠ Wrong network – please switch to Base Sepolia
+          ⚠ Wrong network – please switch to Sepolia
         </div>
         <button
           id="switch-chain-btn"
-          onClick={switchToBaseSepolia}
+          onClick={switchToSepolia}
           disabled={isSwitching}
           className="w-full py-2 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-400 text-white transition-all duration-200 disabled:opacity-60"
         >
-          {isSwitching ? "Switching…" : "Switch to Base Sepolia"}
+          {isSwitching ? "Switching…" : "Switch to Sepolia"}
         </button>
       </div>
     );
@@ -59,7 +59,7 @@ export default function WalletConnect() {
       </div>
       <div className="flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-        <span className="text-[10px] text-green-400 font-semibold">Base Sepolia</span>
+        <span className="text-[10px] text-green-400 font-semibold">Sepolia</span>
         <button
           id="wallet-disconnect-btn"
           onClick={() => disconnect()}
