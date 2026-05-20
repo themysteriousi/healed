@@ -4,6 +4,7 @@ import { injected, metaMask } from "wagmi/connectors";
 
 export const wagmiConfig = createConfig({
   chains: [sepolia],
+  reconnectOnMount: false,
   connectors: [
     injected(),
     metaMask(),

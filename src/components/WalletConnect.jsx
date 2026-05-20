@@ -6,7 +6,7 @@ import { useWallet } from "../hooks/useWallet.js";
  * Shows connect button when disconnected, address + chain status when connected.
  */
 export default function WalletConnect() {
-  const { connectors, connect, isPending } = useConnect();
+  const { connectors, connect, isPending, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const {
     address,
@@ -19,16 +19,24 @@ export default function WalletConnect() {
   } = useWallet();
 
   if (!isConnected) {
-    const mm = connectors.find((c) => c.id === "metaMask") ?? connectors[0];
     return (
-      <button
-        id="wallet-connect-btn"
-        onClick={() => connect({ connector: mm })}
-        disabled={isPending}
-        className="w-full py-2.5 rounded-xl text-sm font-bold bg-green-500 hover:bg-green-400 active:scale-95 text-black transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        {isPending ? "Connecting…" : "🦊 Connect Wallet"}
-      </button>
+      <div className="space-y-2">
+        {connectors.map((connector) => (
+          <button
+            key={connector.uid}
+            onClick={() => connect({ connector })}
+            disabled={isPending}
+            className="w-full py-2.5 rounded-xl text-sm font-bold bg-green-500 hover:bg-green-400 active:scale-95 text-black transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isPending ? "Connecting…" : `🦊 Connect ${connector.name}`}
+          </button>
+        ))}
+        {connectError && (
+          <div className="text-[10px] text-red-400 text-center font-mono break-all mt-2 p-1 bg-red-950/30 rounded border border-red-500/20">
+            {connectError.message || connectError.toString()}
+          </div>
+        )}
+      </div>
     );
   }
 
