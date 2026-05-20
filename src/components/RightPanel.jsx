@@ -5,7 +5,7 @@ import { useWallet } from "../hooks/useWallet.js";
 import { useUGFMint, STEP } from "../hooks/useUGFMint.js";
 import { MUSD_ADDRESS, MUSD_ABI } from "../config/contracts.js";
 import { parseUnits, formatUnits } from "viem";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /**
  * Right panel – real UGF flow wired to Pimlico ERC-4337.
@@ -34,8 +34,13 @@ export default function RightPanel({ onStepChange, onLogsChange }) {
   } = useUGFMint();
 
   // Bubble state up so SplitScreenDemo can pass to EngineLog
-  if (onStepChange) onStepChange(step);
-  if (onLogsChange) onLogsChange(logs);
+  useEffect(() => {
+    if (onStepChange) onStepChange(step);
+  }, [step, onStepChange]);
+
+  useEffect(() => {
+    if (onLogsChange) onLogsChange(logs);
+  }, [logs, onLogsChange]);
 
   // ── Faucet (get test MUSD) ───────────────────────────────────────────────
   const {
