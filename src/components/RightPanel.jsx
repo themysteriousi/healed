@@ -49,13 +49,22 @@ export default function RightPanel({ onStepChange, onLogsChange }) {
     data: faucetTxHash,
   } = useWriteContract();
 
-  const { isLoading: isFaucetConfirming } = useWaitForTransactionReceipt({
+  const { isLoading: isFaucetConfirming, isSuccess: isFaucetSuccess } = useWaitForTransactionReceipt({
     hash: faucetTxHash,
-    query: {
-      enabled: !!faucetTxHash,
-      onSuccess: () => { refetchBalance(); },
-    },
   });
+
+  useEffect(() => {
+    if (isFaucetSuccess) {
+      refetchBalance();
+    }
+  }, [isFaucetSuccess, refetchBalance]);
+
+  useEffect(() => {
+    if (step === STEP.CONFIRMED) {
+      refetchBalance();
+      refetchClaimed();
+    }
+  }, [step, refetchBalance, refetchClaimed]);
 
   const handleFaucet = () => {
     callFaucet({

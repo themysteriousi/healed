@@ -206,10 +206,9 @@ export function useUGFMint() {
           return a;
         }, []);
 
-      // Use viem to get the raw receipt logs and find the token ID
-      const txReceipt = await publicClient.getTransactionReceipt({
-        hash: confirmedTxHash,
-      });
+      // Use the raw receipt logs directly from the bundler response
+      // This prevents race conditions where the public RPC node hasn't indexed it yet
+      const txReceipt = receipt.receipt;
 
       // Find the BadgeMinted log emitted by BadgeNFT
       const mintLog = txReceipt.logs.find(
