@@ -47,7 +47,7 @@ export default function EngineLog({ step, logs }) {
           UGF Engine Log
         </span>
         <span className="ml-auto text-[10px] text-slate-600 font-mono">
-          pimlico · ERC-4337
+          ugf · SDK
         </span>
       </div>
 

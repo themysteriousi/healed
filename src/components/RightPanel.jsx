@@ -3,7 +3,7 @@ import WalletConnect from "./WalletConnect.jsx";
 import NFTPreview from "./NFTPreview.jsx";
 import { useWallet } from "../hooks/useWallet.js";
 import { useUGFMint, STEP } from "../hooks/useUGFMint.js";
-import { MUSD_ADDRESS, MUSD_ABI } from "../config/contracts.js";
+import { MUSD_ABI } from "../config/contracts.js";
 import { parseUnits, formatUnits } from "viem";
 import { useState, useEffect } from "react";
 
@@ -19,6 +19,8 @@ export default function RightPanel({ onStepChange, onLogsChange }) {
     hasClaimed,
     refetchBalance,
     refetchClaimed,
+    handleFaucet,
+    faucetTxHash,
   } = useWallet();
 
   const {
@@ -43,12 +45,6 @@ export default function RightPanel({ onStepChange, onLogsChange }) {
   }, [logs, onLogsChange]);
 
   // ── Faucet (get test MUSD) ───────────────────────────────────────────────
-  const {
-    writeContract: callFaucet,
-    isPending: isFaucetPending,
-    data: faucetTxHash,
-  } = useWriteContract();
-
   const { isLoading: isFaucetConfirming, isSuccess: isFaucetSuccess } = useWaitForTransactionReceipt({
     hash: faucetTxHash,
   });
@@ -65,14 +61,6 @@ export default function RightPanel({ onStepChange, onLogsChange }) {
       refetchClaimed();
     }
   }, [step, refetchBalance, refetchClaimed]);
-
-  const handleFaucet = () => {
-    callFaucet({
-      address: MUSD_ADDRESS,
-      abi: MUSD_ABI,
-      functionName: "faucet",
-    });
-  };
 
   const isConfirmed = step === STEP.CONFIRMED;
   const musdDisplay = musdBalance !== null ? parseFloat(musdBalance).toFixed(2) : "–";
@@ -125,16 +113,16 @@ export default function RightPanel({ onStepChange, onLogsChange }) {
           {!hasMusd && !isConfirmed && (
             <div className="mb-4 rounded-lg border border-yellow-500/30 bg-yellow-950/20 p-3">
               <p className="text-[11px] text-yellow-300 mb-2">
-                ⚠ You need at least $0.08 MUSD to mint. Get free test MUSD:
+                ⚠ You need at least $0.08 MUSD to mint. Since you have 0 ETH, you must use the official Web2 faucet:
               </p>
-              <button
-                id="faucet-btn"
-                onClick={handleFaucet}
-                disabled={isFaucetPending || isFaucetConfirming}
-                className="w-full py-2 rounded-lg text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 hover:bg-yellow-500/30 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              <a
+                href="https://universalgasframework.com/faucets"
+                target="_blank"
+                rel="noreferrer"
+                className="block text-center w-full py-2 rounded-lg text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 hover:bg-yellow-500/30 transition-all"
               >
-                {isFaucetPending || isFaucetConfirming ? "Claiming 100 MUSD…" : "🪙 Claim 100 Free MUSD"}
-              </button>
+                🪙 Get Free MUSD from Official Faucet ↗
+              </a>
             </div>
           )}
 

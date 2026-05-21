@@ -1,17 +1,15 @@
 import { http, createConfig } from "wagmi";
-import { sepolia } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 import { injected, metaMask } from "wagmi/connectors";
 
 export const wagmiConfig = createConfig({
-  chains: [sepolia],
+  chains: [baseSepolia],
   reconnectOnMount: false,
   connectors: [
     injected(),
     metaMask(),
   ],
   transports: {
-    [sepolia.id]: http(
-      "https://ethereum-sepolia-rpc.publicnode.com"
-    ),
+    [baseSepolia.id]: http(),
   },
 });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import LeftPanel from "./components/LeftPanel.jsx";
 import RightPanel from "./components/RightPanel.jsx";
+import SwapPanel from "./components/SwapPanel.jsx";
 import EngineLog from "./components/EngineLog.jsx";
 
 /**
@@ -8,8 +9,16 @@ import EngineLog from "./components/EngineLog.jsx";
  * RightPanel owns UGF state and bubbles step/logs up to EngineLog.
  */
 export default function SplitScreenDemo() {
+  const [activeTab, setActiveTab] = useState("mint"); // 'mint' or 'swap'
   const [step, setStep] = useState(0);
   const [logs, setLogs] = useState([]);
+
+  // Reset logs/step when switching tabs
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setStep(0);
+    setLogs([]);
+  };
 
   return (
     <div
@@ -32,6 +41,31 @@ export default function SplitScreenDemo() {
             </span>
           </div>
         </div>
+
+        {/* ── Tabs ── */}
+        <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50">
+          <button
+            onClick={() => handleTabChange("mint")}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              activeTab === "mint"
+                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Badge Minter
+          </button>
+          <button
+            onClick={() => handleTabChange("swap")}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              activeTab === "swap"
+                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Universal Swap
+          </button>
+        </div>
+
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -47,12 +81,14 @@ export default function SplitScreenDemo() {
       <div className="text-center py-5 shrink-0">
         <h1 className="text-xl sm:text-2xl font-black tracking-tight">
           <span className="text-slate-400">From Clunky </span>
-          <span className="text-red-400">ETH gas hell</span>
+          <span className="text-red-400">{activeTab === "mint" ? "ETH gas hell" : "Bridging Nightmare"}</span>
           <span className="text-slate-400"> → </span>
           <span className="shimmer-text">Invisible Web2-like UX</span>
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Real ERC-4337 gasless minting on Base Sepolia · Powered by Pimlico
+          {activeTab === "mint" 
+            ? "Real Remote gasless transactions on Base Sepolia · Powered by UGF SDK"
+            : "Gasless Cross-Chain Swaps · Real-time Oracles · Zero native gas required"}
         </p>
       </div>
 
@@ -60,7 +96,15 @@ export default function SplitScreenDemo() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_1px_1fr_1px_340px] gap-0 px-4 pb-4 min-h-0">
         {/* Left */}
         <div className="glass rounded-2xl border border-red-900/30 p-5 lg:rounded-r-none lg:border-r-0 m-1 min-h-0">
-          <LeftPanel />
+          {activeTab === "mint" ? (
+            <LeftPanel />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <span className="text-4xl mb-4">🌉</span>
+              <h3 className="text-red-400 font-bold mb-2">The Old Way: Bridging</h3>
+              <p className="text-xs text-slate-400 max-w-xs">Buy ETH &rarr; Bridge to Arbitrum &rarr; Wait 15 mins &rarr; Buy ARB Gas &rarr; Swap on DEX.</p>
+            </div>
+          )}
         </div>
 
         <div className="hidden lg:flex items-center justify-center my-8">
@@ -69,7 +113,11 @@ export default function SplitScreenDemo() {
 
         {/* Right – real chain */}
         <div className="glass rounded-2xl border border-green-900/30 p-5 lg:rounded-l-none lg:border-l-0 m-1 min-h-0">
-          <RightPanel onStepChange={setStep} onLogsChange={setLogs} />
+          {activeTab === "mint" ? (
+            <RightPanel onStepChange={setStep} onLogsChange={setLogs} />
+          ) : (
+            <SwapPanel onStepChange={setStep} onLogsChange={setLogs} />
+          )}
         </div>
 
         <div className="hidden lg:flex items-center justify-center my-8">
@@ -84,7 +132,7 @@ export default function SplitScreenDemo() {
 
       {/* ── footer ── */}
       <footer className="border-t border-slate-800/80 glass px-6 py-2 flex items-center justify-between text-[10px] text-slate-600 shrink-0">
-        <span>UGF · ERC-4337 · Pimlico Bundler · Base Sepolia</span>
+        <span>UGF SDK · Remote Execution Nodes · Base Sepolia</span>
         <span className="flex items-center gap-1.5">
           <span className="w-1 h-1 rounded-full bg-green-500" />
           Relayer online

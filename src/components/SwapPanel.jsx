@@ -203,7 +203,7 @@ export default function SwapPanel({ onStepChange, onLogsChange }) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-400">Network Fee</span>
               <span className="text-xs font-semibold text-green-400 strike line-through opacity-60 mr-1">0.005 ETH</span>
-              <span className="text-xs font-semibold text-green-400 bg-green-500/20 px-2 py-0.5 rounded text-[10px]">Sponsored by Pimlico</span>
+              <span className="text-xs font-semibold text-green-400 bg-green-500/20 px-2 py-0.5 rounded text-[10px]">Sponsored by UGF SDK</span>
             </div>
             
             {isConfirmed ? (
