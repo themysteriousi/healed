@@ -8,7 +8,7 @@ import { parseUnits, formatUnits } from "viem";
 import { useState, useEffect } from "react";
 
 /**
- * Right panel – real UGF flow wired to Pimlico ERC-4337.
+ * Right panel – real UGF flow wired to UGF network.
  */
 export default function RightPanel({ onStepChange, onLogsChange }) {
   const {

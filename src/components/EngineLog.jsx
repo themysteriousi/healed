@@ -108,10 +108,10 @@ export default function EngineLog({ step, logs }) {
 
       {step === STEP.CONFIRMED && (
         <div className="mt-3 rounded-lg border border-green-500/30 bg-green-950/30 p-2.5 text-center animate-slide-in-up">
-          <p className="text-green-400 font-bold text-xs">🎉 Zero-ETH transaction complete</p>
-          <p className="text-green-600 text-[10px] mt-0.5">
-            Paid $0.08 MUSD · Gas sponsored by Pimlico paymaster
-          </p>
+          <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-800 text-[10px]">
+            <span className="text-slate-400">Relayer Status</span>
+            <span className="text-green-400 font-mono">Paid $0.08 MUSD · Gas sponsored by UGF network</span>
+          </div>
         </div>
       )}
     </div>
