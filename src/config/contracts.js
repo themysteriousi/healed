@@ -3,9 +3,8 @@ export const MUSD_ADDRESS = import.meta.env.VITE_MUSD_ADDRESS;
 export const BADGE_NFT_ADDRESS = import.meta.env.VITE_BADGE_NFT_ADDRESS;
 
 // ─── UGF Official Registry MUSD address (Base Sepolia) ───────────────────────
-// Deployed 2026-05-22 alongside BadgeNFT. BadgeNFT.musd() confirmed to match.
-// Raw MINT_FEE = 80000 (6 decimals) = $0.08 MUSD ✅
-export const UGF_MUSD_ADDRESS = "0xb155fc98A7346f2bf1dfF970566774AFfFE5fE53";
+// This is the TRUE official Hackathon MUSD token dispensed by the UGF Faucet.
+export const UGF_MUSD_ADDRESS = "0x27DC1C167AeF232bb1e21073304B526726a8727e";
 
 // ─── MockUSD ABI (minimal – only what the frontend needs) ────────────────────
 export const MUSD_ABI = [
