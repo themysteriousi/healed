@@ -5,8 +5,9 @@ const MINT_STEPS = [
   { id: 0, label: "Idle",             color: "text-slate-400" },
   { id: 1, label: "Quote",            color: "text-blue-400"  },
   { id: 2, label: "Approve MUSD",     color: "text-yellow-400"},
-  { id: 3, label: "Execute On-chain", color: "text-orange-400"},
-  { id: 4, label: "Confirmed ✓",      color: "text-green-400" },
+  { id: 3, label: "Settle Intent",    color: "text-purple-400"},
+  { id: 4, label: "Execute On-chain", color: "text-orange-400"},
+  { id: 5, label: "Confirmed ✓",      color: "text-green-400" },
 ];
 
 const SWAP_STEPS = [
@@ -88,6 +89,16 @@ export default function EngineLog({ step, logs, activeTab }) {
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide">Signing Payment Intent</span>
                     <span className="text-[9px] text-yellow-200/70">Authorizing 0.08 MUSD off-chain payment. No gas required.</span>
+                  </div>
+                </div>
+              )}
+
+              {isActive && (s.label === "Settle Intent" || s.label === "Bridge / Settle") && (
+                <div className="ml-5 mt-1 mb-2 p-2 rounded-lg border border-purple-500/40 bg-gradient-to-r from-purple-900/30 to-transparent flex items-start gap-2 animate-pulse">
+                  <span className="text-base mt-0.5 animate-spin-slow">📡</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">Routing Intent</span>
+                    <span className="text-[9px] text-purple-200/70">Sending cryptographically signed intent to UGF node network...</span>
                   </div>
                 </div>
               )}
