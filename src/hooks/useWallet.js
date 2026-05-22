@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAccount, useReadContract, useWriteContract, useSwitchChain, useBalance } from "wagmi";
-import { MUSD_ABI, MUSD_ADDRESS as FALLBACK_MUSD } from "../config/contracts.js";
+import { MUSD_ABI, UGF_MUSD_ADDRESS } from "../config/contracts.js";
 import { UGFClient, TYI_USD_PAYMENT_COIN } from "@tychilabs/ugf-testnet-js";
 
 let pendingDeduction = 0;
@@ -39,8 +39,8 @@ export function useWallet() {
     switchChain({ chainId: 84532 });
   }, [switchChain]);
   
-  // Use the official UGF Mock USD Address directly to avoid rate limits
-  const musdAddress = "0x27DC1C167AeF232bb1e21073304B526726a8727e";
+  // Use the official UGF registry MUSD address (single source of truth)
+  const musdAddress = UGF_MUSD_ADDRESS;
 
   // Use wagmi to read the MUSD balance of the connected wallet
   const {

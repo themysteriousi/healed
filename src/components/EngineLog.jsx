@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import BalanceChecker from "./BalanceChecker.jsx";
 
 const MINT_STEPS = [
   { id: 0, label: "Idle",             color: "text-slate-400" },
@@ -158,6 +159,9 @@ export default function EngineLog({ step, logs, activeTab }) {
           </div>
         </div>
       )}
+
+      {/* Balance checker — no MetaMask needed */}
+      <BalanceChecker />
     </div>
   );
 }

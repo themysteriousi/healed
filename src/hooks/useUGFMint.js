@@ -3,6 +3,7 @@ import { BrowserProvider, Contract } from "ethers";
 import { useWalletClient, usePublicClient } from "wagmi";
 import { BADGE_NFT_ADDRESS, BADGE_NFT_ABI } from "../config/contracts.js";
 import { createLogger } from "../utils/logger.js";
+import { walletClientToSigner } from "../utils/walletClientToSigner.js";
 import { UGFClient, TYI_USD_PAYMENT_COIN } from "@tychilabs/ugf-testnet-js";
 import { recordPendingDeduction } from "./useWallet.js";
 
@@ -10,8 +11,9 @@ export const STEP = {
   IDLE: 0,
   QUOTE: 1,
   APPROVE: 2,
-  EXECUTE: 3,
-  CONFIRMED: 4,
+  SETTLE: 3,
+  EXECUTE: 4,
+  CONFIRMED: 5,
 };
 
 export function useUGFMint() {
@@ -40,8 +42,8 @@ export function useUGFMint() {
     setTokenId(null);
 
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
+      // Use wagmi walletClient → ethers Signer (works with any connector)
+      const signer = await walletClientToSigner(walletClient);
       const userAddress = await signer.getAddress();
       
       // In UGF, the user's EOA is the actor, no Smart Account needed!
@@ -98,7 +100,11 @@ export function useUGFMint() {
       
       log("Payment settled. Intent submitted to UGF remote execution network.", "success", "OK");
 
-      // ── STEP 3 · EXECUTE ────────────────────────────────────────────────────
+      // ── STEP 3 · SETTLE ─────────────────────────────────────────────────────
+      setStep(STEP.SETTLE);
+      log("Intent routed. Awaiting UGF sponsorship confirmation…", "default", "SETTLE");
+
+      // ── STEP 4 · EXECUTE ─────────────────────────────────────────────────────
       setStep(STEP.EXECUTE);
       log("Waiting for UGF network to sponsor ETH gas to your wallet…", "default", "SPONSOR");
 
@@ -133,12 +139,12 @@ export function useUGFMint() {
       const mintLog = txReceipt.logs.find(
         (l) => l.address.toLowerCase() === BADGE_NFT_ADDRESS.toLowerCase()
       );
-      if (mintLog && mintLog.topics[3]) {
-        const id = BigInt(mintLog.topics[3]).toString();
+      if (mintLog && mintLog.data && mintLog.data !== "0x") {
+        const id = BigInt(mintLog.data).toString();
         setTokenId(id);
         log(`Successfully minted Hackathon Badge #${id}!`, "success", "OK");
       } else {
-        log(`Mint successful, but Token ID not found in logs.`, "success", "OK");
+        log("Mint successful, Token ID not found in receipt logs.", "warn", "OK");
       }
 
     } catch (err) {

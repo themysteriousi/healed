@@ -3,6 +3,7 @@ import { BrowserProvider, parseUnits, Wallet, solidityPackedKeccak256, getBytes,
 import { useAccount, useReadContract, useWalletClient, usePublicClient } from "wagmi";
 import { MUSD_ABI } from "../config/contracts.js";
 import { createLogger } from "../utils/logger.js";
+import { walletClientToSigner } from "../utils/walletClientToSigner.js";
 import { UGFClient, TYI_USD_PAYMENT_COIN } from "@tychilabs/ugf-testnet-js";
 import mockTokens from "../config/mockTokens.json";
 import { recordPendingDeduction } from "./useWallet.js";
@@ -93,8 +94,9 @@ export function useUGFSwap() {
     setTxHash(null);
 
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
+      // Use wagmi walletClient → ethers Signer (works with any connector)
+      const signer = await walletClientToSigner(walletClient);
+      const provider = signer.provider;
       const userAddress = await signer.getAddress();
       
       setSmartAddress(userAddress); // UGF uses the user's EOA natively
@@ -155,6 +157,7 @@ export function useUGFSwap() {
       log(`Fetching cross-chain route to ${targetChainStr}…`, "info", "ROUTER");
       
       await ugf.auth.login(signer);
+
 
       const quote = await ugf.quote.get({
         payment_coin: TYI_USD_PAYMENT_COIN,
