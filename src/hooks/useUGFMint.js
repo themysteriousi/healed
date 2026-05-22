@@ -44,6 +44,7 @@ export function useUGFMint() {
     try {
       // Use wagmi walletClient → ethers Signer (works with any connector)
       const signer = await walletClientToSigner(walletClient);
+      const provider = signer.provider;
       const userAddress = await signer.getAddress();
       
       // In UGF, the user's EOA is the actor, no Smart Account needed!
