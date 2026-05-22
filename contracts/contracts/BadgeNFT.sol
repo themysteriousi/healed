@@ -11,7 +11,7 @@ contract BadgeNFT is ERC721 {
     using Strings for uint256;
 
     IERC20 public immutable musd;
-    uint256 public constant MINT_FEE = 8 * 10 ** 16; // 0.08 MUSD
+    uint256 public constant MINT_FEE = 8 * 10 ** 4; // 0.08 MUSD (6 decimals: 80_000)
 
     uint256 private _tokenIdCounter;
 
