@@ -10,14 +10,17 @@ import EngineLog from "./components/EngineLog.jsx";
  */
 export default function SplitScreenDemo() {
   const [activeTab, setActiveTab] = useState("mint"); // 'mint' or 'swap'
-  const [step, setStep] = useState(0);
-  const [logs, setLogs] = useState([]);
+  
+  // Mint log state
+  const [mintStep, setMintStep] = useState(0);
+  const [mintLogs, setMintLogs] = useState([]);
 
-  // Reset logs/step when switching tabs
+  // Swap log state
+  const [swapStep, setSwapStep] = useState(0);
+  const [swapLogs, setSwapLogs] = useState([]);
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setStep(0);
-    setLogs([]);
   };
 
   return (
@@ -96,15 +99,14 @@ export default function SplitScreenDemo() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_1px_1fr_1px_340px] gap-0 px-4 pb-4 min-h-0">
         {/* Left */}
         <div className="glass rounded-2xl border border-red-900/30 p-5 lg:rounded-r-none lg:border-r-0 m-1 min-h-0">
-          {activeTab === "mint" ? (
+          <div className={activeTab === "mint" ? "h-full" : "hidden"}>
             <LeftPanel />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <span className="text-4xl mb-4">🌉</span>
-              <h3 className="text-red-400 font-bold mb-2">The Old Way: Bridging</h3>
-              <p className="text-xs text-slate-400 max-w-xs">Buy ETH &rarr; Bridge to Arbitrum &rarr; Wait 15 mins &rarr; Buy ARB Gas &rarr; Swap on DEX.</p>
-            </div>
-          )}
+          </div>
+          <div className={activeTab === "swap" ? "flex flex-col items-center justify-center h-full text-center" : "hidden"}>
+            <span className="text-4xl mb-4">🌉</span>
+            <h3 className="text-red-400 font-bold mb-2">The Old Way: Bridging</h3>
+            <p className="text-xs text-slate-400 max-w-xs">Buy ETH &rarr; Bridge to Arbitrum &rarr; Wait 15 mins &rarr; Buy ARB Gas &rarr; Swap on DEX.</p>
+          </div>
         </div>
 
         <div className="hidden lg:flex items-center justify-center my-8">
@@ -113,11 +115,12 @@ export default function SplitScreenDemo() {
 
         {/* Right – real chain */}
         <div className="glass rounded-2xl border border-green-900/30 p-5 lg:rounded-l-none lg:border-l-0 m-1 min-h-0">
-          {activeTab === "mint" ? (
-            <RightPanel onStepChange={setStep} onLogsChange={setLogs} />
-          ) : (
-            <SwapPanel onStepChange={setStep} onLogsChange={setLogs} />
-          )}
+          <div className={activeTab === "mint" ? "h-full" : "hidden"}>
+            <RightPanel onStepChange={setMintStep} onLogsChange={setMintLogs} />
+          </div>
+          <div className={activeTab === "swap" ? "h-full" : "hidden"}>
+            <SwapPanel onStepChange={setSwapStep} onLogsChange={setSwapLogs} />
+          </div>
         </div>
 
         <div className="hidden lg:flex items-center justify-center my-8">
@@ -126,7 +129,10 @@ export default function SplitScreenDemo() {
 
         {/* Engine log */}
         <div className="glass rounded-2xl border border-slate-700/50 p-5 m-1 min-h-[320px] lg:min-h-0">
-          <EngineLog step={step} logs={logs} />
+          <EngineLog
+            step={activeTab === "mint" ? mintStep : swapStep}
+            logs={activeTab === "mint" ? mintLogs : swapLogs}
+          />
         </div>
       </div>
 

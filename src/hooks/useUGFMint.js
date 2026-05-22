@@ -4,6 +4,7 @@ import { useWalletClient, usePublicClient } from "wagmi";
 import { BADGE_NFT_ADDRESS, BADGE_NFT_ABI } from "../config/contracts.js";
 import { createLogger } from "../utils/logger.js";
 import { UGFClient, TYI_USD_PAYMENT_COIN } from "@tychilabs/ugf-testnet-js";
+import { recordPendingDeduction } from "./useWallet.js";
 
 export const STEP = {
   IDLE: 0,
@@ -120,6 +121,9 @@ export function useUGFMint() {
 
       // ── STEP 4 · CONFIRMED ──────────────────────────────────────────────────
       setStep(STEP.CONFIRMED);
+      
+      // Optimistically deduct the demo UGF gas cost (0.08 MUSD) from our local UI balance
+      recordPendingDeduction(0.08);
       
       // We can use viem's publicClient to get the logs for the UI
       log("Fetching receipt to find Token ID…", "info", "INDEX");

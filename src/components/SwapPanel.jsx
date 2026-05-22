@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import WalletConnect from "./WalletConnect.jsx";
 import { useWallet } from "../hooks/useWallet.js";
 import { useUGFSwap, SWAP_STEP } from "../hooks/useUGFSwap.js";
+import mockTokens from "../config/mockTokens.json";
 
 export default function SwapPanel({ onStepChange, onLogsChange }) {
   const {
@@ -22,10 +23,13 @@ export default function SwapPanel({ onStepChange, onLogsChange }) {
     priceError,
     swap,
     reset,
+    targetToken,
+    setTargetToken,
+    targetTokenBalance,
+    refetchTargetBalance,
   } = useUGFSwap();
 
   const [amountIn, setAmountIn] = useState("10");
-  const [targetToken, setTargetToken] = useState("solana");
   const [targetChain, setTargetChain] = useState("Solana");
 
   useEffect(() => {
@@ -39,8 +43,9 @@ export default function SwapPanel({ onStepChange, onLogsChange }) {
   useEffect(() => {
     if (step === SWAP_STEP.CONFIRMED) {
       refetchBalance();
+      refetchTargetBalance?.();
     }
-  }, [step, refetchBalance]);
+  }, [step, refetchBalance, refetchTargetBalance]);
 
   const isConfirmed = step === SWAP_STEP.CONFIRMED;
   const musdDisplay = musdBalance !== null ? parseFloat(musdBalance).toFixed(2) : "–";
@@ -51,7 +56,29 @@ export default function SwapPanel({ onStepChange, onLogsChange }) {
   const estimatedOutput = outPrice > 0 && amountIn ? (parseFloat(amountIn) / outPrice).toFixed(6) : "0.000000";
 
   const handleSwap = () => {
-    swap(amountIn, targetToken.toUpperCase(), targetChain);
+    swap(amountIn, targetToken, targetChain);
+  };
+
+  const handleAddToMetaMask = async () => {
+    if (!window.ethereum) return;
+    const tokenInfo = mockTokens[targetToken];
+    if (!tokenInfo) return;
+    try {
+      await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address: tokenInfo.address,
+            symbol: tokenInfo.symbol,
+            decimals: tokenInfo.decimals,
+            image: "",
+          },
+        },
+      });
+    } catch (err) {
+      console.error("Failed to add token to MetaMask:", err);
+    }
   };
 
   return (
@@ -124,7 +151,12 @@ export default function SwapPanel({ onStepChange, onLogsChange }) {
           <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-slate-900 to-slate-800/60 p-4 mb-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs text-slate-400">To (Estimated)</span>
-              {outPrice > 0 && <span className="text-xs text-slate-500">1 {targetToken.toUpperCase()} = ${outPrice.toLocaleString()}</span>}
+              <div className="flex items-center gap-2">
+                {outPrice > 0 && <span className="text-[10px] text-slate-500">1 {targetToken.toUpperCase()} = ${outPrice.toLocaleString()}</span>}
+                <span className="text-xs text-slate-500">
+                  Balance: {targetTokenBalance !== null ? parseFloat(targetTokenBalance).toFixed(6) : "–"}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-lg border border-slate-700/50">
               <input
@@ -208,16 +240,32 @@ export default function SwapPanel({ onStepChange, onLogsChange }) {
             
             {isConfirmed ? (
               <div className="space-y-3">
-                <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded-xl">
-                  <p className="text-sm text-blue-300 font-bold mb-1">✓ Swap Initiated</p>
-                  <p className="text-xs text-slate-400">Your {amountIn} MUSD has been locked on Base. You will receive {estimatedOutput} {targetToken.toUpperCase()} on {targetChain} shortly.</p>
-                  <a href={`https://sepolia.basescan.org/tx/${txHash}`} target="_blank" rel="noreferrer" className="text-[10px] text-blue-400 underline mt-2 inline-block">
-                    View Transaction
-                  </a>
+                <div className="p-3.5 bg-blue-950/40 border border-blue-500/30 rounded-xl">
+                  <p className="text-sm text-blue-300 font-bold mb-1">✓ Swap Settled</p>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Your {amountIn} MUSD was locked. Cryptographic signature verified successfully. 
+                    You have received {estimatedOutput} {targetToken.toUpperCase()} on Base Sepolia.
+                  </p>
+                  <div className="flex gap-2 mt-3">
+                    <a 
+                      href={`https://sepolia.basescan.org/tx/${txHash}`} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="flex-1 text-center py-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 text-xs text-blue-400 border border-slate-800 hover:border-blue-500/30 transition-all font-semibold"
+                    >
+                      View Tx ↗
+                    </a>
+                    <button
+                      onClick={handleAddToMetaMask}
+                      className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-black text-xs transition-all font-bold flex items-center justify-center gap-1 shadow-lg shadow-blue-500/20 active:scale-95"
+                    >
+                      🦊 Add {targetToken.toUpperCase()}
+                    </button>
+                  </div>
                 </div>
                 <button
                   onClick={reset}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold bg-slate-800 text-white hover:bg-slate-700 transition-all border border-slate-700"
+                  className="w-full py-3.5 rounded-xl text-sm font-bold bg-slate-800 text-white hover:bg-slate-700 transition-all border border-slate-700 active:scale-95"
                 >
                   Start New Swap
                 </button>

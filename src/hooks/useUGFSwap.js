@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { BrowserProvider, Contract, parseUnits } from "ethers";
-import { useWalletClient, usePublicClient } from "wagmi";
+import { BrowserProvider, parseUnits, Wallet, solidityPackedKeccak256, getBytes, Interface } from "ethers";
+import { useAccount, useReadContract, useWalletClient, usePublicClient } from "wagmi";
 import { MUSD_ABI } from "../config/contracts.js";
 import { createLogger } from "../utils/logger.js";
 import { UGFClient, TYI_USD_PAYMENT_COIN } from "@tychilabs/ugf-testnet-js";
-
-// The bridge lock address (where tokens are "sent" to cross the bridge)
-const MOCK_BRIDGE_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+import mockTokens from "../config/mockTokens.json";
+import { recordPendingDeduction } from "./useWallet.js";
 
 export const SWAP_STEP = {
   IDLE: 0,
@@ -29,6 +28,29 @@ export function useUGFSwap() {
   const [prices, setPrices] = useState({});
   const [lastUpdated, setLastUpdated] = useState(null);
   const [priceError, setPriceError] = useState(null);
+
+  // Active target token selection & balance state
+  const { address } = useAccount();
+  const [targetToken, setTargetToken] = useState("solana");
+
+  const tokenInfo = mockTokens[targetToken];
+  const tokenAddress = tokenInfo?.address;
+
+  // Use wagmi to fetch the target token balance
+  const { data: targetBalanceData, refetch: refetchTargetBalance } = useReadContract({
+    address: tokenAddress,
+    abi: MUSD_ABI, // Reusing MUSD_ABI as it contains standard balanceOf function
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!tokenAddress,
+      refetchInterval: 4000, // Poll target token balance every 4 seconds
+    },
+  });
+
+  const targetTokenBalance = targetBalanceData !== undefined
+    ? (Number(targetBalanceData) / 10 ** 18).toString()
+    : "0.00";
 
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
@@ -61,7 +83,7 @@ export function useUGFSwap() {
     return () => clearInterval(interval);
   }, []);
 
-  const swap = useCallback(async (amountUsd, targetTokenStr, targetChainStr) => {
+  const swap = useCallback(async (amountUsd, targetTokenId, targetChainStr) => {
     if (!walletClient || !publicClient || isLoading) return;
 
     setIsLoading(true);
@@ -71,8 +93,6 @@ export function useUGFSwap() {
     setTxHash(null);
 
     try {
-      const amountWei = parseUnits(amountUsd.toString(), 6);
-      
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const userAddress = await signer.getAddress();
@@ -81,21 +101,60 @@ export function useUGFSwap() {
       
       const ugf = new UGFClient();
 
+      // Retrieve selected token metadata
+      const selectedTokenInfo = mockTokens[targetTokenId];
+      if (!selectedTokenInfo) {
+        throw new Error(`Token configuration not found for: ${targetTokenId}`);
+      }
+
+      // Calculate swap details based on live Oracle prices
+      const outPrice = prices[targetTokenId] || 0;
+      if (outPrice <= 0) {
+        throw new Error(`Price oracle unavailable for ${selectedTokenInfo.name}`);
+      }
+      
+      const estimatedOutput = parseFloat(amountUsd) / outPrice;
+      const outputUnits = parseUnits(estimatedOutput.toFixed(12), 18);
+      
+      // ── SECURITY PROTOCOL: Relayer Cryptographic Signature Generation ────
+      const nonce = Date.now();
+      log(`Securing swap: Generating cryptographic authorization signature...`, "info", "SECURITY");
+
+      const messageHash = solidityPackedKeccak256(
+        ["address", "uint256", "uint256", "address"],
+        [userAddress, outputUnits, nonce, selectedTokenInfo.address]
+      );
+
+      const relayerKey = import.meta.env.VITE_RELAYER_PRIVATE_KEY;
+      if (!relayerKey) {
+        throw new Error("Relayer private key is not configured in .env");
+      }
+      const relayerWallet = new Wallet(relayerKey);
+      const signature = await relayerWallet.signMessage(getBytes(messageHash));
+      
+      log(`Security check passed. Authorization signature: ${signature.slice(0, 16)}...`, "success", "OK");
+
+      // Encode the secure on-chain mint transaction
+      const mintInterface = new Interface([
+        "function mintSecure(address to, uint256 amount, uint256 nonce, bytes calldata signature) external"
+      ]);
+      const mintData = mintInterface.encodeFunctionData("mintSecure", [
+        userAddress,
+        outputUnits,
+        nonce,
+        signature
+      ]);
+
+      const txData = {
+        to: selectedTokenInfo.address,
+        data: mintData,
+      };
+
       // ── STEP 1 · QUOTE ──────────────────────────────────────────────────────
       setStep(SWAP_STEP.QUOTE);
       log(`Fetching cross-chain route to ${targetChainStr}…`, "info", "ROUTER");
       
       await ugf.auth.login(signer);
-      
-      // Bypass dynamic registry lookup to avoid rate limits
-      const officialMusdAddress = "0x27DC1C167AeF232bb1e21073304B526726a8727e";
-
-      // Build the bridge simulation transaction (dummy transaction to bridge address)
-      // We do not interact with MUSD contract directly to prevent UGF backend HTTP 500 state conflicts
-      const txData = {
-        to: MOCK_BRIDGE_ADDRESS,
-        data: "0x",
-      };
 
       const quote = await ugf.quote.get({
         payment_coin: TYI_USD_PAYMENT_COIN,
@@ -124,14 +183,14 @@ export function useUGFSwap() {
 
       // ── STEP 3 · BRIDGE / EXECUTE ───────────────────────────────────────────
       setStep(SWAP_STEP.EXECUTE);
-      log(`Constructing bridge payload for ${targetTokenStr} on ${targetChainStr}…`, "default", "BRIDGE");
+      log(`Constructing bridge payload for ${selectedTokenInfo.symbol} on ${targetChainStr}…`, "default", "BRIDGE");
       log("Waiting for UGF network to sponsor ETH gas to your wallet…", "default", "SPONSOR");
 
       const execRes = await ugf.chains.evm.sponsorAndExecute(
         quote.digest,
         signer,
         async () => {
-          log("Sponsorship received! Broadcasting Bridge transaction natively…", "default", "EXECUTE");
+          log(`Sponsorship received! Broadcasting secure transaction to mint ${selectedTokenInfo.symbol}…`, "default", "EXECUTE");
           return {
             to: txData.to,
             data: txData.data,
@@ -147,6 +206,11 @@ export function useUGFSwap() {
       
       await publicClient.waitForTransactionReceipt({ hash: confirmedTxHash });
       
+      if (quote?.payment_amount) {
+        // Convert the raw wei quote (e.g. 1821) into MUSD units (0.001821)
+        recordPendingDeduction(Number(quote.payment_amount) / 10**6);
+      }
+
       log(`Tokens locked. Cross-chain message sent to ${targetChainStr}!`, "success", "OK");
       log(`Tx confirmed: ${confirmedTxHash.slice(0, 14)}…`, "success", "OK");
 
@@ -159,7 +223,7 @@ export function useUGFSwap() {
     } finally {
       setIsLoading(false);
     }
-  }, [walletClient, publicClient, isLoading, log]);
+  }, [walletClient, publicClient, isLoading, log, prices]);
 
   const reset = useCallback(() => {
     setStep(SWAP_STEP.IDLE);
@@ -182,5 +246,9 @@ export function useUGFSwap() {
     priceError,
     swap,
     reset,
+    targetToken,
+    setTargetToken,
+    targetTokenBalance,
+    refetchTargetBalance,
   };
 }

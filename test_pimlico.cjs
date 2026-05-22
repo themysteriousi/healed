@@ -1,0 +1,41 @@
+const https = require('https');
+
+const PIMLICO_KEY = "pim_c9cJf16BNp3RT71QvvB9Xe";
+
+function testEndpoint(version) {
+  return new Promise((resolve) => {
+    const data = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'eth_supportedEntryPoints',
+      params: []
+    });
+
+    const options = {
+      hostname: 'api.pimlico.io',
+      port: 443,
+      path: `/${version}/sepolia/rpc?apikey=${PIMLICO_KEY}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': data.length
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => resolve(`[${version}] ${body}`));
+    });
+
+    req.write(data);
+    req.end();
+  });
+}
+
+async function run() {
+  console.log(await testEndpoint("v2"));
+  console.log(await testEndpoint("v7"));
+}
+
+run();

@@ -1,0 +1,122 @@
+{
+  "bitcoin": {
+    "address": "0x5729167Ab01b7952aAd61b1cDa1ABB0a3Dbd4AFF",
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "decimals": 18
+  },
+  "ethereum": {
+    "address": "0x5723d7DB2E7b0BcD4dD2fA8FbCd1DC34D0EFF3D2",
+    "symbol": "ETH",
+    "name": "Ethereum",
+    "decimals": 18
+  },
+  "solana": {
+    "address": "0xc4bc4c38BB9bBefE12d9D2fE994eB636c6A48406",
+    "symbol": "SOL",
+    "name": "Solana",
+    "decimals": 18
+  },
+  "ripple": {
+    "address": "0x4CE2a1Ffb6615A9A134e299B78Ded0FE57d4bf3F",
+    "symbol": "XRP",
+    "name": "Ripple",
+    "decimals": 18
+  },
+  "binancecoin": {
+    "address": "0xC7cf88019F34Bb15D03C649E586DC1133c901492",
+    "symbol": "BNB",
+    "name": "BNB",
+    "decimals": 18
+  },
+  "cardano": {
+    "address": "0x1Df6fbaEcC32f6Cd64e57291651779a50e599ab8",
+    "symbol": "ADA",
+    "name": "Cardano",
+    "decimals": 18
+  },
+  "dogecoin": {
+    "address": "0x37136137b451CF7a17A0e285ebD74aD6b0dfFA6b",
+    "symbol": "DOGE",
+    "name": "Dogecoin",
+    "decimals": 18
+  },
+  "tron": {
+    "address": "0xF72852F9298d0170C576eA9f1b709D0dCF5594Df",
+    "symbol": "TRX",
+    "name": "Tron",
+    "decimals": 18
+  },
+  "the-open-network": {
+    "address": "0xE991d0C7267f1C503879DcF36ad5Ecd16Ad82Bc1",
+    "symbol": "TON",
+    "name": "Toncoin",
+    "decimals": 18
+  },
+  "chainlink": {
+    "address": "0x19d2a750419d54343552489ae92D2699dB399af8",
+    "symbol": "LINK",
+    "name": "Chainlink",
+    "decimals": 18
+  },
+  "avalanche-2": {
+    "address": "0x4913E7b76a05c670D3a9AEE3C31fd9083854Fc28",
+    "symbol": "AVAX",
+    "name": "Avalanche",
+    "decimals": 18
+  },
+  "polkadot": {
+    "address": "0xe00531AE5963De72c69F9F30d9C6a22B4F201Bdc",
+    "symbol": "DOT",
+    "name": "Polkadot",
+    "decimals": 18
+  },
+  "polygon-ecosystem-token": {
+    "address": "0x8D2D0Cf4b36eB9977940063C9DFBE5C2CF3bAfe4",
+    "symbol": "POL",
+    "name": "Polygon",
+    "decimals": 18
+  },
+  "litecoin": {
+    "address": "0x207872674208331E0f80334cd04b9419EC3613f4",
+    "symbol": "LTC",
+    "name": "Litecoin",
+    "decimals": 18
+  },
+  "shiba-inu": {
+    "address": "0x2Ab8439Ad2Bc034434F81DBc23646Ad6aE6d7C38",
+    "symbol": "SHIB",
+    "name": "Shiba Inu",
+    "decimals": 18
+  },
+  "bitcoin-cash": {
+    "address": "0x6fc3db2EAdd37A1362668a7F3c33259aad313Ae0",
+    "symbol": "BCH",
+    "name": "Bitcoin Cash",
+    "decimals": 18
+  },
+  "uniswap": {
+    "address": "0xFff80F44165C5D00D80a5881dCD76400225e163D",
+    "symbol": "UNI",
+    "name": "Uniswap",
+    "decimals": 18
+  },
+  "stellar": {
+    "address": "0x393a2E2319EA48b5a3e792607c212D574b287028",
+    "symbol": "XLM",
+    "name": "Stellar",
+    "decimals": 18
+  },
+  "monero": {
+    "address": "0x8035a36F65f75c9E2aE786dd38F236723Ba75b47",
+    "symbol": "XMR",
+    "name": "Monero",
+    "decimals": 18
+  },
+  "cosmos": {
+    "address": "0x58c7ff2eE505868c4C85564891d17C534127eE0C",
+    "symbol": "ATOM",
+    "name": "Cosmos",
+    "decimals": 18
+  }
+}

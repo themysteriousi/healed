@@ -3,15 +3,35 @@ import { useAccount, useReadContract, useWriteContract, useSwitchChain, useBalan
 import { MUSD_ABI, MUSD_ADDRESS as FALLBACK_MUSD } from "../config/contracts.js";
 import { UGFClient, TYI_USD_PAYMENT_COIN } from "@tychilabs/ugf-testnet-js";
 
+let pendingDeduction = 0;
+const deductionListeners = new Set();
+
+export const recordPendingDeduction = (amount) => {
+  pendingDeduction += Number(amount);
+  deductionListeners.forEach(fn => fn());
+};
+
 export function useWallet() {
   const { address, isConnected, chainId } = useAccount();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   
+  const [optDeduct, setOptDeduct] = useState(pendingDeduction);
+  useEffect(() => {
+    const handleDeduction = () => setOptDeduct(pendingDeduction);
+    deductionListeners.add(handleDeduction);
+    return () => deductionListeners.delete(handleDeduction);
+  }, []);
+
   const isCorrectChain = chainId === 84532; // Base Sepolia
   
   // Format helpers
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
-  const { data: ethBalanceData } = useBalance({ address });
+  const { data: ethBalanceData } = useBalance({
+    address,
+    query: {
+      refetchInterval: 4000,
+    }
+  });
   const ethBalanceFormatted = ethBalanceData ? Number(ethBalanceData.formatted).toFixed(3) : "0.000";
 
   // Action helpers
@@ -33,6 +53,7 @@ export function useWallet() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && !!musdAddress,
+      refetchInterval: 4000, // Poll balance every 4 seconds to capture background transactions
     },
   });
 
@@ -54,7 +75,8 @@ export function useWallet() {
   if (musdBalanceData !== undefined) {
     // formatting wei to readable string (TYI_MOCK_USD uses 6 decimals)
     const formatted = Number(musdBalanceData) / 10 ** 6;
-    musdBalance = formatted.toString();
+    const finalBalance = Math.max(0, formatted - optDeduct);
+    musdBalance = finalBalance.toFixed(2);
   }
 
   // Claim check for NFT
