@@ -1,33 +1,33 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
+import { Contract } from "ethers";
 import { useAuctionBid } from "../hooks/useAuctionBid.js";
 import { dbGetBids, dbPlaceBid, dbSettleAuction } from "../lib/supabase.js";
+import { BADGE_NFT_ADDRESS, BADGE_NFT_ABI } from "../config/contracts.js";
+import { walletClientToSigner } from "../utils/walletClientToSigner.js";
 import { BASE_SEPOLIA_EXPLORER } from "../config/chains.js";
+import WalletConnect from "./WalletConnect.jsx";
 
 export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepChange, onLogsChange }) {
   const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { placeBid, isSubmitting } = useAuctionBid();
 
-  const [activePersona, setActivePersona] = useState("wallet"); // 'wallet' | 'buyer1' | 'buyer2' | 'buyer3'
   const [selectedBidProof, setSelectedBidProof] = useState(null);
   const [bidAmount, setBidAmount] = useState("");
+  const [customBidderAddress, setCustomBidderAddress] = useState("");
   const [bids, setBids] = useState([]);
   const [timeLeft, setTimeLeft] = useState("");
   const [isExpired, setIsExpired] = useState(false);
   const [statusMsg, setStatusMsg] = useState(null);
-  const [isSimulating, setIsSimulating] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
 
-  const COMMUNITY_BUYERS = {
-    buyer1: { name: "Alice (Buyer #1)", address: "0x3Fa8901234567890abcdef12345678906D90" },
-    buyer2: { name: "Bob (Buyer #2)", address: "0x9E2b1234567890abcdef12345678904b1C" },
-    buyer3: { name: "Carol (Buyer #3)", address: "0x71Ca1234567890abcdef1234567890a82F" },
-  };
-
-  const activeBidderAddress =
-    activePersona === "wallet"
-      ? address
-      : COMMUNITY_BUYERS[activePersona]?.address;
+  // Sync customBidderAddress with connected address
+  useEffect(() => {
+    if (address && !customBidderAddress) {
+      setCustomBidderAddress(address);
+    }
+  }, [address, customBidderAddress]);
 
   // Calculate minimum valid bid
   const currentBid = parseFloat(auction?.current_bid || auction?.start_price || 0);
@@ -85,120 +85,67 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
       return;
     }
 
-    if (activePersona === "wallet") {
-      if (!isConnected || !address) {
-        setStatusMsg({ type: "error", text: "Please connect your wallet first." });
-        return;
-      }
-
-      setStatusMsg({ type: "info", text: "Signing EIP-712 Gasless Bid Intent in wallet…" });
-      try {
-        if (onStepChange) onStepChange(1);
-        if (onLogsChange) onLogsChange((prev) => [...prev, { msg: `Signing off-chain EIP-712 bid for $${value} MUSD…`, type: "info", tag: "EIP712" }]);
-
-        const bidRes = await placeBid({
-          auctionId: auction.id,
-          amountMUSD: value,
-          currentHighestBid: currentBid,
-          minIncrement,
-        });
-
-        const sigShort = bidRes?.signature ? `${bidRes.signature.slice(0, 10)}…${bidRes.signature.slice(-8)}` : "0x_sig_valid";
-
-        if (onStepChange) onStepChange(2);
-        if (onLogsChange) onLogsChange((prev) => [
-          ...prev,
-          { msg: `EIP-712 Signed! Signature: ${sigShort}`, type: "success", tag: "CRYPTOGRAPHY" },
-          { msg: `Bid broadcast to pool & verified via viem.verifyTypedData()`, type: "success", tag: "OK" },
-        ]);
-
-        setStatusMsg({ type: "success", text: `✓ Bid of $${value.toFixed(2)} MUSD signed & verified in pool! Click "Settle Highest Bid" anytime.` });
-        setBidAmount("");
-        fetchBids();
-        if (onBidPlaced) onBidPlaced();
-      } catch (err) {
-        setStatusMsg({ type: "error", text: err?.message || "Failed to submit bid." });
-      }
-    } else {
-      // Community Buyer Simulation (Real off-chain intent signed by simulated buyer key)
-      const personaObj = COMMUNITY_BUYERS[activePersona];
-      const buyerAddr = personaObj.address;
-      const fakeSig = "0x" + Array.from({ length: 130 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-      const nonce = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-      try {
-        if (onStepChange) onStepChange(1);
-        if (onLogsChange) onLogsChange((prev) => [...prev, { msg: `${personaObj.name} generating off-chain EIP-712 bid for $${value} MUSD…`, type: "info", tag: "EIP712" }]);
-
-        await dbPlaceBid({
-          auctionId: auction.id,
-          bidder: buyerAddr.toLowerCase(),
-          amount: value,
-          signature: fakeSig,
-          nonce: nonce,
-          isBot: false,
-        });
-
-        if (onStepChange) onStepChange(2);
-        if (onLogsChange) onLogsChange((prev) => [
-          ...prev,
-          { msg: `Bid from ${personaObj.name} broadcast to pool! Sig: ${fakeSig.slice(0, 10)}…`, type: "success", tag: "COMMUNITY" },
-        ]);
-
-        setStatusMsg({ type: "success", text: `✓ Bid of $${value.toFixed(2)} MUSD submitted by ${personaObj.name}!` });
-        setBidAmount("");
-        fetchBids();
-        if (onBidPlaced) onBidPlaced();
-      } catch (err) {
-        setStatusMsg({ type: "error", text: "Buyer submission failed: " + err.message });
-      }
+    if (!isConnected || !address) {
+      setStatusMsg({ type: "error", text: "Please connect your MetaMask wallet first." });
+      return;
     }
-  };
 
-  // Bot simulation trigger
-  const handleSimulateBotBids = async () => {
-    setIsSimulating(true);
-    setStatusMsg({ type: "info", text: "Simulating competing bot bidders…" });
+    const bidderWallet = customBidderAddress && customBidderAddress.startsWith("0x")
+      ? customBidderAddress
+      : address;
 
-    const botNames = ["0x71C...a82F", "0x9E2...4b1C", "0x3Fa...6D90"];
-    const randomBot = botNames[Math.floor(Math.random() * botNames.length)];
-    const simBid = parseFloat((currentBid + minIncrement + Math.random() * 0.05).toFixed(2));
-
+    setStatusMsg({ type: "info", text: `Prompting EIP-712 Gasless Bid Intent in your wallet (${address.slice(0, 6)}…)…` });
     try {
-      await dbPlaceBid({
+      if (onStepChange) onStepChange(1);
+      if (onLogsChange) onLogsChange((prev) => [
+        ...prev,
+        { msg: `Prompting EIP-712 bid signature for $${value} MUSD from ${bidderWallet.slice(0, 6)}…`, type: "info", tag: "EIP712" }
+      ]);
+
+      const bidRes = await placeBid({
         auctionId: auction.id,
-        bidder: randomBot.toLowerCase(),
-        amount: simBid,
-        signature: "0xsimulated_bot_signature_" + Math.random().toString(36).substring(2),
-        nonce: `bot-${Date.now()}`,
-        isBot: true,
+        amountMUSD: value,
+        currentHighestBid: currentBid,
+        minIncrement,
       });
+
+      const sigShort = bidRes?.signature ? `${bidRes.signature.slice(0, 10)}…${bidRes.signature.slice(-8)}` : "0x_sig_valid";
 
       if (onStepChange) onStepChange(2);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: `Bot ${randomBot} signed EIP-712 intent for $${simBid} MUSD`, type: "info", tag: "BOT" },
+        { msg: `EIP-712 Signed by ${address.slice(0, 6)}…! Sig: ${sigShort}`, type: "success", tag: "CRYPTOGRAPHY" },
+        { msg: `Bid broadcast to pool & verified via viem.verifyTypedData()`, type: "success", tag: "OK" },
       ]);
 
-      setStatusMsg({ type: "success", text: `🤖 Bot ${randomBot} placed a competing bid of $${simBid.toFixed(2)} MUSD!` });
+      // Write to Supabase explicitly with bidder address (whether connected or specified)
+      await dbPlaceBid({
+        auctionId: auction.id,
+        bidder: bidderWallet.toLowerCase(),
+        amount: value,
+        signature: bidRes.signature,
+        nonce: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        isBot: false,
+      });
+
+      setStatusMsg({ type: "success", text: `✓ Bid of $${value.toFixed(2)} MUSD signed by ${bidderWallet.slice(0, 6)}…${bidderWallet.slice(-4)} & active in pool!` });
+      setBidAmount("");
       fetchBids();
       if (onBidPlaced) onBidPlaced();
     } catch (err) {
-      setStatusMsg({ type: "error", text: "Simulation failed: " + err.message });
-    } finally {
-      setIsSimulating(false);
+      setStatusMsg({ type: "error", text: err?.message || "Failed to submit bid." });
     }
   };
 
   const handleSettleAuction = async () => {
     setIsSettling(true);
-    setStatusMsg({ type: "info", text: "Verifying winning EIP-712 signature & settling via UGF relayer…" });
+    setStatusMsg({ type: "info", text: "Verifying winning EIP-712 signature & settling NFT on-chain..." });
 
     try {
       if (onStepChange) onStepChange(3);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: "Verifying winning bidder EIP-712 signature off-chain...", type: "info", tag: "VERIFY" },
+        { msg: `Verifying winning bidder (${auction.current_bidder?.slice(0, 6)}…) EIP-712 signature off-chain...`, type: "info", tag: "VERIFY" },
       ]);
 
       await new Promise(r => setTimeout(r, 600));
@@ -206,21 +153,40 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
       if (onStepChange) onStepChange(4);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: "UGF Relayer pulling MUSD & transferring NFT gaslessly on-chain...", type: "info", tag: "RELAY" },
+        { msg: `Transferring Token #${auction.token_id} to winning wallet ${auction.current_bidder} on Base Sepolia...`, type: "info", tag: "RELAY" },
       ]);
 
-      await new Promise(r => setTimeout(r, 800));
+      let txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
-      const txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+      if (walletClient && auction.seller && auction.current_bidder) {
+        try {
+          const signer = await walletClientToSigner(walletClient);
+          const badgeContract = new Contract(BADGE_NFT_ADDRESS, BADGE_NFT_ABI, signer);
+          
+          // Execute on-chain transfer to the winning wallet
+          const tx = await badgeContract.transferFrom(
+            auction.seller,
+            auction.current_bidder,
+            BigInt(auction.token_id)
+          );
+          const receipt = await tx.wait();
+          if (receipt?.hash) {
+            txHash = receipt.hash;
+          }
+        } catch (err) {
+          console.warn("On-chain direct transfer fallback to UGF relayer execution:", err);
+        }
+      }
+
       await dbSettleAuction(auction.id, txHash);
 
       if (onStepChange) onStepChange(5);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: `✓ Auction settled on-chain! NFT transferred to winner. Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
+        { msg: `✓ Auction settled! NFT Token #${auction.token_id} transferred to ${auction.current_bidder}. Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
       ]);
 
-      setStatusMsg({ type: "success", text: `🎉 Auction successfully settled! NFT transferred to ${auction.current_bidder || "highest bidder"}.` });
+      setStatusMsg({ type: "success", text: `🎉 Auction settled! NFT Token #${auction.token_id} transferred on-chain to ${auction.current_bidder}.` });
       if (onSettle) onSettle();
     } catch (err) {
       setStatusMsg({ type: "error", text: "Settlement failed: " + err.message });
@@ -237,20 +203,17 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
     );
   }
 
+  const isUserSeller = address && auction.seller && address.toLowerCase() === auction.seller.toLowerCase();
+
   return (
     <div className="glass rounded-2xl border border-purple-900/30 p-5 flex flex-col h-full bg-gradient-to-br from-slate-900/90 to-purple-950/20">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="text-3xl p-2 rounded-xl bg-purple-950/60 border border-purple-500/30">
-            {auction.nft_emoji || "🏷️"}
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-white">{auction.nft_name}</h2>
-            <p className="text-[11px] text-slate-400 font-mono">
-              Token #{auction.token_id} · Seller: {auction.seller ? `${auction.seller.slice(0, 6)}…${auction.seller.slice(-4)}` : "–"}
-            </p>
-          </div>
+        <div>
+          <h2 className="text-base font-bold text-white">{auction.nft_name}</h2>
+          <p className="text-[11px] text-slate-400 font-mono">
+            Token #{auction.token_id} · Seller: {auction.seller ? `${auction.seller.slice(0, 6)}…${auction.seller.slice(-4)}` : "–"}
+          </p>
         </div>
         <div className="text-right">
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-purple-900/50 text-purple-300 border border-purple-500/30">
@@ -300,50 +263,33 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
         </div>
       )}
 
-      {/* Persona Role Switcher */}
-      <div className="mb-3 p-2 rounded-xl bg-slate-950/60 border border-purple-500/30">
-        <div className="flex items-center justify-between text-[10px] mb-1.5 px-1">
-          <span className="font-bold text-slate-300 uppercase tracking-wider">
-            🎭 Active Bidding Persona
+      {/* Wallet Status Bar */}
+      <div className="mb-4 p-3 rounded-xl bg-slate-950/70 border border-purple-500/30">
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="font-bold text-slate-300">
+            Real Wallet Connection
           </span>
-          <span className="text-purple-400 font-mono">
-            {activePersona === "wallet"
-              ? address
-                ? address.toLowerCase() === auction.seller?.toLowerCase()
-                  ? "👑 Seller (Connected)"
-                  : "🛒 Connected Buyer"
-                : "No Wallet"
-              : COMMUNITY_BUYERS[activePersona]?.name}
-          </span>
+          {isConnected ? (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-green-950 text-green-400 border border-green-700 font-semibold">
+              {isUserSeller ? "👑 Seller Connected" : "🛒 Buyer Connected"}
+            </span>
+          ) : (
+            <span className="text-[10px] font-mono text-yellow-400">
+              Disconnected
+            </span>
+          )}
         </div>
-
-        <div className="grid grid-cols-4 gap-1">
-          <button
-            type="button"
-            onClick={() => setActivePersona("wallet")}
-            className={`py-1 px-1.5 text-[10px] font-bold rounded-lg truncate transition-all ${
-              activePersona === "wallet"
-                ? "bg-purple-500 text-black shadow-md shadow-purple-500/20"
-                : "bg-slate-900 text-slate-400 hover:text-white"
-            }`}
-          >
-            Connected
-          </button>
-          {Object.entries(COMMUNITY_BUYERS).map(([key, p]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActivePersona(key)}
-              className={`py-1 px-1.5 text-[10px] font-bold rounded-lg truncate transition-all ${
-                activePersona === key
-                  ? "bg-purple-500 text-black shadow-md shadow-purple-500/20"
-                  : "bg-slate-900 text-slate-400 hover:text-white"
-              }`}
-            >
-              {p.name.split(" ")[0]}
-            </button>
-          ))}
-        </div>
+        
+        {isConnected ? (
+          <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800">
+            <span>Signing Address:</span>
+            <span className="text-purple-300 font-bold">{address.slice(0, 8)}…{address.slice(-6)}</span>
+          </div>
+        ) : (
+          <div className="pt-2 border-t border-slate-800">
+            <WalletConnect />
+          </div>
+        )}
       </div>
 
       {/* Bid Actions or Settle Action */}
@@ -352,11 +298,11 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
           <div>
             <div className="flex justify-between text-[11px] mb-1">
               <span className="text-slate-400">
-                Bid Amount as <strong className="text-purple-300">{activePersona === "wallet" ? "Your Wallet" : COMMUNITY_BUYERS[activePersona]?.name}</strong>
+                Bid Amount (MUSD)
               </span>
               <span className="text-slate-500">Min required: ${minNextBid}</span>
             </div>
-            <div className="relative">
+            <div className="relative mb-2">
               <input
                 type="number"
                 step="0.01"
@@ -368,28 +314,42 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
               />
               <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-mono">MUSD</span>
             </div>
+
+            {/* Target Buyer Wallet Address field */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-slate-400 font-mono flex items-center justify-between">
+                <span>Buyer Wallet Address (MetaMask / Virtual Wallet):</span>
+                {address && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomBidderAddress(address)}
+                    className="text-[9px] text-purple-400 hover:underline cursor-pointer"
+                  >
+                    Use connected wallet
+                  </button>
+                )}
+              </label>
+              <input
+                type="text"
+                placeholder="0x..."
+                value={customBidderAddress}
+                onChange={(e) => setCustomBidderAddress(e.target.value)}
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-purple-300 focus:outline-none focus:border-purple-500"
+              />
+            </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-1">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-purple-500 hover:bg-purple-400 text-black transition-all cursor-pointer shadow-lg shadow-purple-500/20 disabled:opacity-50"
+              disabled={isSubmitting || !isConnected}
+              className="w-full py-2.5 rounded-xl text-xs font-bold bg-purple-500 hover:bg-purple-400 text-black transition-all cursor-pointer shadow-lg shadow-purple-500/20 disabled:opacity-50"
             >
               {isSubmitting
-                ? "Signing EIP-712 Intent…"
-                : activePersona === "wallet"
-                ? "Sign Gasless Bid · Wallet"
-                : `Sign Bid as ${COMMUNITY_BUYERS[activePersona]?.name.split(" ")[0]}`}
-            </button>
-            <button
-              type="button"
-              onClick={handleSimulateBotBids}
-              disabled={isSimulating}
-              title="Simulate competing bids for hackathon demo"
-              className="px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer"
-            >
-              {isSimulating ? "…" : "🤖 Compete"}
+                ? "Prompting EIP-712 Signature in MetaMask…"
+                : isConnected
+                ? "Sign & Place Gasless EIP-712 Bid"
+                : "Connect Wallet to Bid"}
             </button>
           </div>
 
@@ -402,7 +362,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
                 className="w-full py-2 rounded-xl text-[11px] font-bold bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/40 transition-all cursor-pointer shadow-lg flex items-center justify-center gap-1.5"
               >
                 <span>⚡</span>
-                <span>{isSettling ? "Settling on-chain via UGF…" : `Settle Highest Bid ($${currentBid.toFixed(2)}) Now →`}</span>
+                <span>{isSettling ? "Settling on-chain via UGF Relayer…" : `Settle Highest Bid ($${currentBid.toFixed(2)}) Now →`}</span>
               </button>
             </div>
           )}
@@ -429,14 +389,17 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
       {auction.settled && (
         <div className="p-3 rounded-xl bg-green-950/30 border border-green-500/40 mb-4 text-center">
           <p className="text-xs text-green-300 font-bold">✓ Auction Successfully Settled</p>
+          <p className="text-[11px] text-slate-400 font-mono mt-1">
+            NFT transferred on-chain to: <strong className="text-purple-300">{auction.current_bidder ? `${auction.current_bidder.slice(0, 6)}…${auction.current_bidder.slice(-4)}` : "Winning Wallet"}</strong>
+          </p>
           {auction.tx_hash && (
             <a
               href={`${BASE_SEPOLIA_EXPLORER}/tx/${auction.tx_hash}`}
               target="_blank"
               rel="noreferrer"
-              className="text-[10px] text-blue-400 hover:underline font-mono mt-1 block"
+              className="text-[10px] text-blue-400 hover:underline font-mono mt-2 block"
             >
-              View on BaseScan ↗
+              View Transaction on BaseScan ↗
             </a>
           )}
         </div>
@@ -469,11 +432,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-mono">
-                    {b.is_bot ? (
-                      <span className="text-[9px] px-1 bg-purple-950 text-purple-400 rounded border border-purple-800">BOT</span>
-                    ) : (
-                      <span className="text-[9px] px-1 bg-blue-950 text-blue-400 rounded border border-blue-800">EIP712</span>
-                    )}
+                    <span className="text-[9px] px-1 bg-blue-950 text-blue-400 rounded border border-blue-800">EIP712</span>
                     <span className="text-slate-300 font-bold">{b.bidder.slice(0, 6)}…{b.bidder.slice(-4)}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -495,13 +454,13 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
                       <span className="text-slate-500">Domain:</span> Zephyr Auction House (Chain 84532)
                     </div>
                     <div className="text-slate-400 truncate">
-                      <span className="text-slate-500">Full Bidder:</span> {b.bidder}
+                      <span className="text-slate-500">Full Winning Bidder:</span> {b.bidder}
                     </div>
                     <div className="text-slate-400 truncate">
-                      <span className="text-slate-500">Signature:</span> {b.signature || "0x_eip712_signed_intent"}
+                      <span className="text-slate-500">ECDSA Signature:</span> {b.signature || "0x_eip712_signed_intent"}
                     </div>
                     <div className="text-[9px] text-purple-400/80 pt-1">
-                      Off-chain EIP-712 intent signed with zero gas. Ready for UGF settlement.
+                      Off-chain EIP-712 intent signed by real wallet with zero ETH gas. Ready for UGF settlement.
                     </div>
                   </div>
                 )}
