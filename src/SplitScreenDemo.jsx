@@ -98,7 +98,7 @@ export default function SplitScreenDemo() {
                 : "text-slate-500 hover:text-slate-300"
             }`}
           >
-            🖼️ Minted NFTs
+            Minted NFTs
           </button>
           <button
             onClick={() => handleTabChange("auction")}
@@ -108,7 +108,7 @@ export default function SplitScreenDemo() {
                 : "text-slate-500 hover:text-slate-300"
             }`}
           >
-            ⚡ Auction Market
+            Auction Market
           </button>
         </div>
 

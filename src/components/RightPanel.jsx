@@ -130,7 +130,6 @@ export default function RightPanel({ onStepChange, onLogsChange, onNavigate }) {
                           : "border-slate-800 bg-slate-950/40 hover:border-slate-700"
                       }`}
                     >
-                      <span className="text-xl">{item.emoji}</span>
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold text-white truncate">{item.name}</p>
                         <p className="text-[10px] font-mono text-green-400">{item.priceDisplay} MUSD</p>
@@ -168,25 +167,17 @@ export default function RightPanel({ onStepChange, onLogsChange, onNavigate }) {
                   onClick={() => onNavigate("my-nfts")}
                   className="w-full py-2 rounded-xl text-xs font-bold bg-purple-500 hover:bg-purple-400 text-black cursor-pointer shadow-lg shadow-purple-500/20 transition-all"
                 >
-                  ⚡ View in "My Minted NFTs" & Sell at Auction →
+                  View in "My Minted NFTs" & Sell at Auction →
                 </button>
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-2.5 mb-3 flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-                style={{
-                  background: "linear-gradient(135deg, #0f2a1a 0%, #134d2e 100%)",
-                  border: "1.5px solid rgba(74,222,128,0.4)",
-                }}
-              >
-                {selectedNFT?.emoji || "🏷️"}
-              </div>
+            <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-2.5 mb-3 flex items-center justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-200 truncate">{selectedNFT?.name}</p>
                 <p className="text-[10px] text-slate-500">ERC-721 · Base Sepolia · Gasless Execution</p>
               </div>
+              <span className="text-xs font-bold font-mono text-green-400">{selectedNFT?.priceDisplay}</span>
             </div>
           )}
 
