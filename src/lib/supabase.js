@@ -5,19 +5,22 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishabl
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ── Global Multi-User Sync using single 'auctions' table ─────────────────────
+// ── Global Multi-User Sync ───────────────────────────────────────────────────
 
 export async function dbCreateAuction(auctionData) {
-  const newId = `auc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const record = {
-    id: newId,
-    created_at: new Date().toISOString(),
-    settled: false,
+    seller: auctionData.seller.toLowerCase(),
+    nft_contract: auctionData.nft_contract,
+    token_id: String(auctionData.token_id),
+    nft_name: auctionData.nft_name || "Hackathon Badge",
+    nft_emoji: auctionData.nft_emoji || "🏷️",
+    start_price: parseFloat(auctionData.start_price),
+    min_increment: 0.01,
     current_bid: parseFloat(auctionData.start_price),
     current_bidder: null,
-    min_increment: 0.01,
-    bids: [],
-    ...auctionData,
+    ends_at: auctionData.ends_at,
+    settled: false,
+    created_at: new Date().toISOString(),
   };
 
   const { data, error } = await supabase
@@ -51,7 +54,7 @@ export async function dbGetAuctions() {
 export async function dbPlaceBid({ auctionId, bidder, amount, signature, nonce, isBot = false }) {
   const numericAmount = parseFloat(amount);
   const newBid = {
-    id: `bid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    auction_id: auctionId,
     bidder: bidder.toLowerCase(),
     amount: numericAmount,
     signature: signature || "0x_sig",
@@ -60,21 +63,54 @@ export async function dbPlaceBid({ auctionId, bidder, amount, signature, nonce, 
     created_at: new Date().toISOString(),
   };
 
-  // 1. Fetch current auction to get existing bids
-  const { data: currentAuction, error: fetchErr } = await supabase
+  // 1. Try inserting into 'bids' table first (2-table schema)
+  const { data: insertedBid, error: bidErr } = await supabase
+    .from("bids")
+    .insert([newBid])
+    .select()
+    .single();
+
+  if (bidErr) {
+    console.warn("bids table insert warning, trying 1-table jsonb fallback:", bidErr.message);
+    // 1-table fallback logic (bids column in auctions)
+    const { data: currentAuction } = await supabase
+      .from("auctions")
+      .select("bids, ends_at")
+      .eq("id", auctionId)
+      .single();
+
+    const existingBids = Array.isArray(currentAuction?.bids) ? currentAuction.bids : [];
+    const updatedBids = [newBid, ...existingBids];
+
+    let endsAt = currentAuction?.ends_at;
+    if (endsAt) {
+      const timeRemaining = new Date(endsAt).getTime() - Date.now();
+      if (timeRemaining < 2 * 60 * 1000) {
+        endsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+      }
+    }
+
+    const { error: updateErr } = await supabase
+      .from("auctions")
+      .update({
+        current_bid: numericAmount,
+        current_bidder: bidder.toLowerCase(),
+        bids: updatedBids,
+        ends_at: endsAt,
+      })
+      .eq("id", auctionId);
+
+    if (updateErr) throw new Error(updateErr.message);
+    return newBid;
+  }
+
+  // 2-table schema: update auction current_bid and current_bidder
+  const { data: currentAuction } = await supabase
     .from("auctions")
-    .select("bids, ends_at")
+    .select("ends_at")
     .eq("id", auctionId)
     .single();
 
-  if (fetchErr) {
-    throw new Error(fetchErr.message);
-  }
-
-  const existingBids = Array.isArray(currentAuction?.bids) ? currentAuction.bids : [];
-  const updatedBids = [newBid, ...existingBids];
-
-  // Anti-sniping: extend by 2 min if placed near end
   let endsAt = currentAuction?.ends_at;
   if (endsAt) {
     const timeRemaining = new Date(endsAt).getTime() - Date.now();
@@ -83,38 +119,42 @@ export async function dbPlaceBid({ auctionId, bidder, amount, signature, nonce, 
     }
   }
 
-  // 2. Update auction record with new highest bid and bids array
-  const { data: updatedAuction, error: updateErr } = await supabase
+  await supabase
     .from("auctions")
     .update({
       current_bid: numericAmount,
       current_bidder: bidder.toLowerCase(),
-      bids: updatedBids,
       ends_at: endsAt,
     })
-    .eq("id", auctionId)
-    .select()
-    .single();
+    .eq("id", auctionId);
 
-  if (updateErr) {
-    throw new Error(updateErr.message);
-  }
-
-  return newBid;
+  return insertedBid || newBid;
 }
 
 export async function dbGetBids(auctionId) {
+  // 1. Fetch from 'bids' table (2-table schema)
+  const { data: bidsData, error: bidsErr } = await supabase
+    .from("bids")
+    .select("*")
+    .eq("auction_id", auctionId)
+    .order("created_at", { ascending: false });
+
+  if (!bidsErr && bidsData && bidsData.length > 0) {
+    return bidsData;
+  }
+
+  // 2. Fallback to 'bids' column in 'auctions' table (1-table schema)
   const { data, error } = await supabase
     .from("auctions")
     .select("bids")
     .eq("id", auctionId)
     .single();
 
-  if (error || !data || !Array.isArray(data.bids)) {
-    return [];
+  if (!error && data && Array.isArray(data.bids)) {
+    return data.bids;
   }
 
-  return data.bids;
+  return bidsData || [];
 }
 
 export async function dbSettleAuction(auctionId, txHash) {
