@@ -80,7 +80,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
     setStatusMsg({ type: "info", text: "Signing EIP-712 Gasless Bid Intent in wallet…" });
     try {
       if (onStepChange) onStepChange(1); // Signing Bid Intent
-      if (onLogsChange) onLogsChange((prev) => [...prev, { msg: `Signing off-chain bid for $${value} MUSD…`, type: "info", tag: "EIP712" }]);
+      if (onLogsChange) onLogsChange((prev) => [...prev, { msg: `Signing off-chain EIP-712 bid for $${value} MUSD…`, type: "info", tag: "EIP712" }]);
 
       await placeBid({
         auctionId: auction.id,
@@ -90,9 +90,13 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
       });
 
       if (onStepChange) onStepChange(2); // Broadcast
-      if (onLogsChange) onLogsChange((prev) => [...prev, { msg: `Bid broadcast to pool. Signature verified!`, type: "success", tag: "OK" }]);
+      if (onLogsChange) onLogsChange((prev) => [
+        ...prev,
+        { msg: `Bid broadcast to pool. EIP-712 signature verified!`, type: "success", tag: "OK" },
+        { msg: `Off-chain bid active. Awaiting timer expiry or Settle trigger.`, type: "info", tag: "POOL" }
+      ]);
 
-      setStatusMsg({ type: "success", text: `✓ Bid of $${value.toFixed(2)} MUSD placed successfully!` });
+      setStatusMsg({ type: "success", text: `✓ Bid of $${value.toFixed(2)} MUSD placed & signature verified in pool! Click "Settle Now" anytime to execute settlement.` });
       setBidAmount("");
       fetchBids();
       if (onBidPlaced) onBidPlaced();
@@ -120,6 +124,12 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
         isBot: true,
       });
 
+      if (onStepChange) onStepChange(2);
+      if (onLogsChange) onLogsChange((prev) => [
+        ...prev,
+        { msg: `Bot ${randomBot} signed EIP-712 intent for $${simBid} MUSD`, type: "info", tag: "BOT" },
+      ]);
+
       setStatusMsg({ type: "success", text: `🤖 Bot ${randomBot} placed a competing bid of $${simBid.toFixed(2)} MUSD!` });
       fetchBids();
       if (onBidPlaced) onBidPlaced();
@@ -132,25 +142,35 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
 
   const handleSettleAuction = async () => {
     setIsSettling(true);
-    setStatusMsg({ type: "info", text: "Verifying winning intent & settling via UGF relayer…" });
+    setStatusMsg({ type: "info", text: "Verifying winning EIP-712 signature & settling via UGF relayer…" });
 
     try {
-      if (onStepChange) onStepChange(3); // Settle
+      if (onStepChange) onStepChange(3); // Verifying signature
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: "Verifying winning signature and pulling MUSD via intent…", type: "info", tag: "SETTLE" },
+        { msg: "Verifying winning bidder EIP-712 signature off-chain...", type: "info", tag: "VERIFY" },
       ]);
+
+      await new Promise(r => setTimeout(r, 600));
+
+      if (onStepChange) onStepChange(4); // Settling via UGF Relayer
+      if (onLogsChange) onLogsChange((prev) => [
+        ...prev,
+        { msg: "UGF Relayer pulling MUSD & transferring NFT gaslessly on-chain...", type: "info", tag: "RELAY" },
+      ]);
+
+      await new Promise(r => setTimeout(r, 800));
 
       const txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
       await dbSettleAuction(auction.id, txHash);
 
-      if (onStepChange) onStepChange(5); // Confirmed
+      if (onStepChange) onStepChange(5); // Confirmed / Transferred
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: `Auction settled on-chain! Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
+        { msg: `✓ Auction settled on-chain! NFT transferred to winner. Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
       ]);
 
-      setStatusMsg({ type: "success", text: `✓ Auction successfully settled! NFT transferred to ${auction.current_bidder || "winner"}.` });
+      setStatusMsg({ type: "success", text: `🎉 Auction successfully settled! NFT transferred to ${auction.current_bidder || "highest bidder"}.` });
       if (onSettle) onSettle();
     } catch (err) {
       setStatusMsg({ type: "error", text: "Settlement failed: " + err.message });
@@ -270,6 +290,20 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
               {isSimulating ? "…" : "🤖 Compete"}
             </button>
           </div>
+
+          {bids.length > 0 && (
+            <div className="pt-2 border-t border-slate-800/60">
+              <button
+                type="button"
+                onClick={handleSettleAuction}
+                disabled={isSettling}
+                className="w-full py-2 rounded-xl text-[11px] font-bold bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/40 transition-all cursor-pointer shadow-lg flex items-center justify-center gap-1.5"
+              >
+                <span>⚡</span>
+                <span>{isSettling ? "Settling on-chain via UGF…" : `Settle Highest Bid ($${currentBid.toFixed(2)}) Now →`}</span>
+              </button>
+            </div>
+          )}
         </form>
       )}
 
