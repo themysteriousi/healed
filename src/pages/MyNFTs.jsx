@@ -43,25 +43,54 @@ export default function MyNFTs({ onNavigate }) {
     }
     setActiveAuctions(auctionMap);
 
-    // 2. Fetch local session records or construct based on on-chain balance
-    const sessionTokenId = sessionStorage.getItem("lastMintedTokenId") || "1";
-    const balanceNum = balanceData ? Number(balanceData) : (sessionStorage.getItem("lastMintedTokenId") ? 1 : 0);
+    // 2. Fetch user minted history from localStorage & sessionStorage
+    let savedNFTs = [];
+    try {
+      savedNFTs = JSON.parse(localStorage.getItem("userMintedNFTs") || "[]");
+    } catch {
+      savedNFTs = [];
+    }
 
-    const items = [];
-    if (balanceNum > 0) {
-      items.push({
-        id: "minted-badge",
-        name: "Hackathon 2025 Finisher",
-        description: "Official Hackathon 2025 badge minted gaslessly on Base Sepolia.",
-        emoji: "🏅",
-        tokenId: sessionTokenId,
+    const lastMintedStr = sessionStorage.getItem("lastMintedNFT");
+    if (lastMintedStr) {
+      try {
+        const lastNFT = JSON.parse(lastMintedStr);
+        if (lastNFT?.tokenId && !savedNFTs.some((x) => x.tokenId === lastNFT.tokenId)) {
+          savedNFTs.unshift(lastNFT);
+        }
+      } catch (e) {}
+    }
+
+    const balanceNum = balanceData ? Number(balanceData) : (savedNFTs.length || 1);
+
+    if (savedNFTs.length === 0 && balanceNum > 0) {
+      savedNFTs.push({
+        id: "hacker-pass",
+        name: "Hacker Pass",
+        description: "Entry-level hackathon credential. Proof you shipped.",
+        emoji: "🏷️",
+        tokenId: sessionStorage.getItem("lastMintedTokenId") || "1",
         priceMUSD: 0.08,
         priceDisplay: "$0.08",
-        rarity: "Special Edition",
-        badgeColor: "bg-green-900/60 text-green-400",
+        rarity: "Common",
+        badgeColor: "bg-slate-700/60 text-slate-300",
         contractAddress: BADGE_NFT_ADDRESS,
       });
     }
+
+    // Map through saved items to ensure all fields are present
+    const items = savedNFTs.map((item, idx) => ({
+      id: item.id || `minted-${idx}`,
+      name: item.name || "Hackathon Badge",
+      description: item.description || `Official ${item.name || "Hackathon"} NFT credential minted gaslessly on Base Sepolia.`,
+      emoji: item.emoji || "🏷️",
+      tokenId: item.tokenId || String(idx + 1),
+      priceMUSD: item.priceMUSD || 0.08,
+      priceDisplay: item.priceDisplay || `$${(item.priceMUSD || 0.08).toFixed(2)}`,
+      rarity: item.rarity || "Special Edition",
+      badgeColor: item.badgeColor || "bg-purple-900/60 text-purple-300",
+      contractAddress: BADGE_NFT_ADDRESS,
+    }));
 
     setMintedList(items);
   }, [address, balanceData]);

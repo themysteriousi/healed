@@ -3,9 +3,12 @@ import { BASE_SEPOLIA_EXPLORER } from "../config/chains.js";
 /**
  * NFT success card shown after a confirmed on-chain mint.
  */
-export default function NFTPreview({ txHash, tokenId, smartAddress }) {
+export default function NFTPreview({ txHash, tokenId, smartAddress, selectedNFT }) {
   const txUrl = txHash ? `${BASE_SEPOLIA_EXPLORER}/tx/${txHash}` : null;
   const addressUrl = smartAddress ? `${BASE_SEPOLIA_EXPLORER}/address/${smartAddress}` : null;
+
+  const nftName = selectedNFT?.name || "Hackathon Badge";
+  const feeDisplay = selectedNFT?.priceDisplay || "$0.08";
 
   return (
     <div className="rounded-xl border border-green-500/30 bg-gradient-to-br from-green-950/40 to-slate-900/60 p-4 animate-slide-in-up">
@@ -21,7 +24,7 @@ export default function NFTPreview({ txHash, tokenId, smartAddress }) {
           🏅
         </div>
         <div>
-          <p className="text-sm font-bold text-white">Hackathon 2025 Finisher</p>
+          <p className="text-sm font-bold text-white">{nftName}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">
             ERC-721 · Token #{tokenId ?? "…"}
           </p>
@@ -71,7 +74,7 @@ export default function NFTPreview({ txHash, tokenId, smartAddress }) {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">MUSD fee</span>
-          <span className="text-slate-200">$0.08</span>
+          <span className="text-green-400 font-bold">{feeDisplay}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Network</span>

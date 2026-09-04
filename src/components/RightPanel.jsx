@@ -161,7 +161,7 @@ export default function RightPanel({ onStepChange, onLogsChange, onNavigate }) {
           {/* NFT preview or selected badge summary */}
           {isConfirmed ? (
             <div className="space-y-3">
-              <NFTPreview txHash={txHash} tokenId={tokenId} smartAddress={smartAddress} />
+              <NFTPreview txHash={txHash} tokenId={tokenId} smartAddress={smartAddress} selectedNFT={selectedNFT} />
               {onNavigate && (
                 <button
                   onClick={() => onNavigate("my-nfts")}
