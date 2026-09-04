@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { useAuctionBid } from "../hooks/useAuctionBid.js";
-import { supabase } from "../lib/supabase.js";
+import { dbGetBids, dbPlaceBid, dbSettleAuction } from "../lib/supabase.js";
 import { BASE_SEPOLIA_EXPLORER } from "../config/chains.js";
 
 export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepChange, onLogsChange }) {
@@ -24,12 +24,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
   // Fetch bids for this auction
   const fetchBids = useCallback(async () => {
     if (!auction?.id) return;
-    const { data } = await supabase
-      .from("bids")
-      .select("*")
-      .eq("auction_id", auction.id)
-      .order("created_at", { ascending: false });
-
+    const data = await dbGetBids(auction.id);
     if (data) {
       setBids(data);
     }
@@ -116,23 +111,14 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
     const simBid = parseFloat((currentBid + minIncrement + Math.random() * 0.05).toFixed(2));
 
     try {
-      // Insert simulated bid
-      await supabase.from("bids").insert({
-        auction_id: auction.id,
+      await dbPlaceBid({
+        auctionId: auction.id,
         bidder: randomBot.toLowerCase(),
         amount: simBid,
         signature: "0xsimulated_bot_signature_" + Math.random().toString(36).substring(2),
         nonce: `bot-${Date.now()}`,
-        is_bot: true,
+        isBot: true,
       });
-
-      await supabase
-        .from("auctions")
-        .update({
-          current_bid: simBid,
-          current_bidder: randomBot.toLowerCase(),
-        })
-        .eq("id", auction.id);
 
       setStatusMsg({ type: "success", text: `🤖 Bot ${randomBot} placed a competing bid of $${simBid.toFixed(2)} MUSD!` });
       fetchBids();
@@ -155,23 +141,8 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
         { msg: "Verifying winning signature and pulling MUSD via intent…", type: "info", tag: "SETTLE" },
       ]);
 
-      // Call API or mark settled
-      const res = await fetch("/api/auctions/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ auctionId: auction.id }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      const txHash = data.txHash || "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-
-      await supabase
-        .from("auctions")
-        .update({
-          settled: true,
-          tx_hash: txHash,
-        })
-        .eq("id", auction.id);
+      const txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+      await dbSettleAuction(auction.id, txHash);
 
       if (onStepChange) onStepChange(5); // Confirmed
       if (onLogsChange) onLogsChange((prev) => [

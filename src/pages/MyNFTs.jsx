@@ -3,7 +3,7 @@ import { useAccount, useReadContract } from "wagmi";
 import { BADGE_NFT_ADDRESS, BADGE_NFT_ABI } from "../config/contracts.js";
 import { NFT_CATALOG } from "../config/nftCatalog.js";
 import NFTCard from "../components/NFTCard.jsx";
-import { supabase } from "../lib/supabase.js";
+import { dbCreateAuction, dbGetAuctions } from "../lib/supabase.js";
 
 export default function MyNFTs({ onNavigate }) {
   const { address, isConnected } = useAccount();
@@ -31,16 +31,14 @@ export default function MyNFTs({ onNavigate }) {
       return;
     }
 
-    // 1. Fetch active auctions by this user or for this contract
-    const { data: existingAuctions } = await supabase
-      .from("auctions")
-      .select("token_id, settled")
-      .eq("seller", address.toLowerCase());
-
+    // 1. Fetch active auctions by this user
+    const existingAuctions = await dbGetAuctions();
     const auctionMap = {};
     if (existingAuctions) {
       existingAuctions.forEach((a) => {
-        if (!a.settled) auctionMap[a.token_id] = true;
+        if (!a.settled && a.seller?.toLowerCase() === address.toLowerCase()) {
+          auctionMap[a.token_id] = true;
+        }
       });
     }
     setActiveAuctions(auctionMap);
@@ -51,7 +49,6 @@ export default function MyNFTs({ onNavigate }) {
 
     const items = [];
     if (balanceNum > 0) {
-      // Create representation for the minted badge
       items.push({
         id: "minted-badge",
         name: "Hackathon 2025 Finisher",
@@ -85,21 +82,15 @@ export default function MyNFTs({ onNavigate }) {
       const durationMs = parseInt(durationMinutes, 10) * 60 * 1000;
       const endsAt = new Date(Date.now() + durationMs).toISOString();
 
-      const { data, error } = await supabase.from("auctions").insert({
+      await dbCreateAuction({
         seller: address.toLowerCase(),
         nft_contract: BADGE_NFT_ADDRESS,
         token_id: selectedForAuction.tokenId || "1",
         nft_name: selectedForAuction.name,
         nft_emoji: selectedForAuction.emoji || "🏷️",
         start_price: parseFloat(startPrice),
-        min_increment: 0.01,
-        current_bid: parseFloat(startPrice),
-        current_bidder: null,
         ends_at: endsAt,
-        settled: false,
-      }).select().single();
-
-      if (error) throw error;
+      });
 
       setListSuccessMsg(`✓ Successfully listed ${selectedForAuction.name} for auction!`);
       setSelectedForAuction(null);

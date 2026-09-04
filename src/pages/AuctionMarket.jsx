@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../lib/supabase.js";
+import { dbGetAuctions } from "../lib/supabase.js";
 import AuctionPanel from "../components/AuctionPanel.jsx";
 
 export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }) {
@@ -8,23 +8,17 @@ export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("active"); // 'active' | 'all' | 'settled'
 
-  // Fetch all auctions from Supabase
+  // Fetch all auctions
   const fetchAuctions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("auctions")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (!error && data) {
+      const data = await dbGetAuctions();
+      if (data) {
         setAuctions(data);
-        // Automatically select the first live auction if none selected
         if (!selectedAuction && data.length > 0) {
           const liveOne = data.find((a) => !a.settled) || data[0];
           setSelectedAuction(liveOne);
         } else if (selectedAuction) {
-          // Update selected auction state
           const updated = data.find((a) => a.id === selectedAuction.id);
           if (updated) setSelectedAuction(updated);
         }
