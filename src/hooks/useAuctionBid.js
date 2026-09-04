@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAccount, useSignTypedData } from "wagmi";
-import { supabase } from "../lib/supabase.js";
+import { dbPlaceBid } from "../lib/supabase.js";
 
 export const EIP712_DOMAIN = {
   name: "Zephyr Auction House",
@@ -76,27 +76,16 @@ export function useAuctionBid() {
           // Fallback to direct Supabase client write
         }
 
-        // 2. Client-side fallback write to Supabase
+        // 2. Client-side fallback write to Supabase (single auctions table with bids JSONB)
         if (!apiSuccess) {
-          const { error: bidErr } = await supabase.from("bids").insert({
-            auction_id: auctionId,
-            bidder: address.toLowerCase(),
+          await dbPlaceBid({
+            auctionId,
+            bidder: address,
             amount: numericBid,
             signature,
             nonce,
-            is_bot: false,
+            isBot: false,
           });
-
-          if (bidErr) throw bidErr;
-
-          // Update auction record current highest bid
-          await supabase
-            .from("auctions")
-            .update({
-              current_bid: numericBid,
-              current_bidder: address.toLowerCase(),
-            })
-            .eq("id", auctionId);
         }
 
         return { success: true, amount: numericBid, signature };

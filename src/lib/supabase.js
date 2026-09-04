@@ -5,39 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishabl
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ── Storage Keys for Resilient Local Fallback ────────────────────────────────
-const LOCAL_AUCTIONS_KEY = "zephyr_local_auctions";
-const LOCAL_BIDS_KEY = "zephyr_local_bids";
-
-function getLocalAuctions() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_AUCTIONS_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalAuctions(list) {
-  try {
-    localStorage.setItem(LOCAL_AUCTIONS_KEY, JSON.stringify(list));
-  } catch {}
-}
-
-function getLocalBids() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_BIDS_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalBids(list) {
-  try {
-    localStorage.setItem(LOCAL_BIDS_KEY, JSON.stringify(list));
-  } catch {}
-}
-
-// ── Unified Auction & Bid DB Operations with Automatic Fallback ─────────────
+// ── Global Multi-User Sync using single 'auctions' table ─────────────────────
 
 export async function dbCreateAuction(auctionData) {
   const newId = `auc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -45,112 +13,120 @@ export async function dbCreateAuction(auctionData) {
     id: newId,
     created_at: new Date().toISOString(),
     settled: false,
-    current_bid: auctionData.start_price,
+    current_bid: parseFloat(auctionData.start_price),
     current_bidder: null,
     min_increment: 0.01,
+    bids: [],
     ...auctionData,
   };
 
-  try {
-    const { data, error } = await supabase.from("auctions").insert(record).select().single();
-    if (!error && data) {
-      return data;
-    }
-  } catch {}
+  const { data, error } = await supabase
+    .from("auctions")
+    .insert([record])
+    .select()
+    .single();
 
-  // Fallback to local storage
-  const current = getLocalAuctions();
-  current.unshift(record);
-  saveLocalAuctions(current);
-  return record;
+  if (error) {
+    console.error("Supabase insert error:", error.message);
+    throw new Error(error.message);
+  }
+
+  return data;
 }
 
 export async function dbGetAuctions() {
-  try {
-    const { data, error } = await supabase
-      .from("auctions")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("auctions")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      return data;
-    }
-  } catch {}
+  if (error) {
+    console.warn("Supabase fetch warning:", error.message);
+    return [];
+  }
 
-  return getLocalAuctions();
+  return data || [];
 }
 
 export async function dbPlaceBid({ auctionId, bidder, amount, signature, nonce, isBot = false }) {
+  const numericAmount = parseFloat(amount);
   const newBid = {
     id: `bid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    auction_id: auctionId,
     bidder: bidder.toLowerCase(),
-    amount: parseFloat(amount),
+    amount: numericAmount,
     signature: signature || "0x_sig",
     nonce: nonce || `${Date.now()}`,
     is_bot: Boolean(isBot),
     created_at: new Date().toISOString(),
   };
 
-  try {
-    await supabase.from("bids").insert(newBid);
-    await supabase
-      .from("auctions")
-      .update({
-        current_bid: newBid.amount,
-        current_bidder: newBid.bidder,
-      })
-      .eq("id", auctionId);
-  } catch {}
+  // 1. Fetch current auction to get existing bids
+  const { data: currentAuction, error: fetchErr } = await supabase
+    .from("auctions")
+    .select("bids, ends_at")
+    .eq("id", auctionId)
+    .single();
 
-  // Always keep local in sync
-  const allBids = getLocalBids();
-  allBids.unshift(newBid);
-  saveLocalBids(allBids);
+  if (fetchErr) {
+    throw new Error(fetchErr.message);
+  }
 
-  const auctions = getLocalAuctions();
-  const idx = auctions.findIndex((a) => a.id === auctionId);
-  if (idx !== -1) {
-    auctions[idx].current_bid = newBid.amount;
-    auctions[idx].current_bidder = newBid.bidder;
-    saveLocalAuctions(auctions);
+  const existingBids = Array.isArray(currentAuction?.bids) ? currentAuction.bids : [];
+  const updatedBids = [newBid, ...existingBids];
+
+  // Anti-sniping: extend by 2 min if placed near end
+  let endsAt = currentAuction?.ends_at;
+  if (endsAt) {
+    const timeRemaining = new Date(endsAt).getTime() - Date.now();
+    if (timeRemaining < 2 * 60 * 1000) {
+      endsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+    }
+  }
+
+  // 2. Update auction record with new highest bid and bids array
+  const { data: updatedAuction, error: updateErr } = await supabase
+    .from("auctions")
+    .update({
+      current_bid: numericAmount,
+      current_bidder: bidder.toLowerCase(),
+      bids: updatedBids,
+      ends_at: endsAt,
+    })
+    .eq("id", auctionId)
+    .select()
+    .single();
+
+  if (updateErr) {
+    throw new Error(updateErr.message);
   }
 
   return newBid;
 }
 
 export async function dbGetBids(auctionId) {
-  try {
-    const { data, error } = await supabase
-      .from("bids")
-      .select("*")
-      .eq("auction_id", auctionId)
-      .order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("auctions")
+    .select("bids")
+    .eq("id", auctionId)
+    .single();
 
-    if (!error && data && data.length > 0) {
-      return data;
-    }
-  } catch {}
+  if (error || !data || !Array.isArray(data.bids)) {
+    return [];
+  }
 
-  return getLocalBids().filter((b) => b.auction_id === auctionId);
+  return data.bids;
 }
 
 export async function dbSettleAuction(auctionId, txHash) {
-  try {
-    await supabase
-      .from("auctions")
-      .update({
-        settled: true,
-        tx_hash: txHash,
-      })
-      .eq("id", auctionId);
-  } catch {}
+  const { error } = await supabase
+    .from("auctions")
+    .update({
+      settled: true,
+      tx_hash: txHash,
+    })
+    .eq("id", auctionId);
 
-  const auctions = getLocalAuctions();
-  const idx = auctions.findIndex((a) => a.id === auctionId);
-  if (idx !== -1) {
-    auctions[idx].settled = true;
-    auctions[idx].tx_hash = txHash;
-    saveLocalAuctions(auctions);
+  if (error) {
+    console.error("Supabase settlement error:", error.message);
   }
 }
