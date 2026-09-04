@@ -18,16 +18,30 @@ export async function dbCreateAuction(auctionData) {
     min_increment: 0.01,
     current_bid: parseFloat(auctionData.start_price),
     current_bidder: null,
+    bids: [],
     ends_at: auctionData.ends_at,
     settled: false,
     created_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  // Try insert with bids field
+  let { data, error } = await supabase
     .from("auctions")
     .insert([record])
     .select()
     .single();
+
+  // Fallback: If 'bids' column is missing in DB, remove bids key and retry
+  if (error && error.message.includes("bids")) {
+    delete record.bids;
+    const retry = await supabase
+      .from("auctions")
+      .insert([record])
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error("Supabase insert error:", error.message);
@@ -63,51 +77,22 @@ export async function dbPlaceBid({ auctionId, bidder, amount, signature, nonce, 
     created_at: new Date().toISOString(),
   };
 
-  // 1. Try inserting into 'bids' table first (2-table schema)
-  const { data: insertedBid, error: bidErr } = await supabase
+  // 1. Try inserting into 'bids' table (2-table schema)
+  let insertedBid = null;
+  const { data: bData, error: bidErr } = await supabase
     .from("bids")
     .insert([newBid])
     .select()
     .single();
 
-  if (bidErr) {
-    console.warn("bids table insert warning, trying 1-table jsonb fallback:", bidErr.message);
-    // 1-table fallback logic (bids column in auctions)
-    const { data: currentAuction } = await supabase
-      .from("auctions")
-      .select("bids, ends_at")
-      .eq("id", auctionId)
-      .single();
-
-    const existingBids = Array.isArray(currentAuction?.bids) ? currentAuction.bids : [];
-    const updatedBids = [newBid, ...existingBids];
-
-    let endsAt = currentAuction?.ends_at;
-    if (endsAt) {
-      const timeRemaining = new Date(endsAt).getTime() - Date.now();
-      if (timeRemaining < 2 * 60 * 1000) {
-        endsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-      }
-    }
-
-    const { error: updateErr } = await supabase
-      .from("auctions")
-      .update({
-        current_bid: numericAmount,
-        current_bidder: bidder.toLowerCase(),
-        bids: updatedBids,
-        ends_at: endsAt,
-      })
-      .eq("id", auctionId);
-
-    if (updateErr) throw new Error(updateErr.message);
-    return newBid;
+  if (!bidErr) {
+    insertedBid = bData;
   }
 
-  // 2-table schema: update auction current_bid and current_bidder
+  // 2. Fetch auction to update current_bid, current_bidder & bids jsonb array
   const { data: currentAuction } = await supabase
     .from("auctions")
-    .select("ends_at")
+    .select("bids, ends_at")
     .eq("id", auctionId)
     .single();
 
@@ -119,20 +104,26 @@ export async function dbPlaceBid({ auctionId, bidder, amount, signature, nonce, 
     }
   }
 
+  const updatePayload = {
+    current_bid: numericAmount,
+    current_bidder: bidder.toLowerCase(),
+    ends_at: endsAt,
+  };
+
+  if (currentAuction && Array.isArray(currentAuction.bids)) {
+    updatePayload.bids = [newBid, ...currentAuction.bids];
+  }
+
   await supabase
     .from("auctions")
-    .update({
-      current_bid: numericAmount,
-      current_bidder: bidder.toLowerCase(),
-      ends_at: endsAt,
-    })
+    .update(updatePayload)
     .eq("id", auctionId);
 
   return insertedBid || newBid;
 }
 
 export async function dbGetBids(auctionId) {
-  // 1. Fetch from 'bids' table (2-table schema)
+  // 1. Try fetching from 'bids' table
   const { data: bidsData, error: bidsErr } = await supabase
     .from("bids")
     .select("*")
@@ -143,7 +134,7 @@ export async function dbGetBids(auctionId) {
     return bidsData;
   }
 
-  // 2. Fallback to 'bids' column in 'auctions' table (1-table schema)
+  // 2. Fallback to 'bids' column in 'auctions' table
   const { data, error } = await supabase
     .from("auctions")
     .select("bids")
