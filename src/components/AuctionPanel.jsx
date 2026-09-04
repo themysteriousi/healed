@@ -412,7 +412,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
             Live Off-Chain Bid Pool ({bids.length})
           </span>
           <span className="text-[9px] text-purple-400 font-mono">
-            Click bid to inspect EIP-712 proof 🔑
+            Click bid to inspect EIP-712 proof
           </span>
         </div>
 
@@ -447,7 +447,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
                 {selectedBidProof?.id === b.id && (
                   <div className="mt-2 pt-2 border-t border-purple-900/50 text-[10px] font-mono space-y-1 bg-slate-950 p-2 rounded-md">
                     <div className="flex justify-between text-purple-300 font-bold">
-                      <span>🔑 Cryptographic Signature Proof</span>
+                      <span>Cryptographic Signature Proof</span>
                       <span className="text-green-400">VERIFIED ✓</span>
                     </div>
                     <div className="text-slate-400 truncate">

@@ -13,10 +13,8 @@ export default function NFTCard({
   const {
     name,
     description,
-    emoji,
     priceDisplay,
     rarity,
-    rarityColor,
     borderColor,
     bgGradient,
     badgeColor,
@@ -41,20 +39,11 @@ export default function NFTCard({
         </span>
       </div>
 
-      {/* Main Icon & Title */}
+      {/* Main Title & Description (Clean, no emoji logos) */}
       <div className="flex flex-col items-center my-3 text-center">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-lg"
-          style={{
-            background: "linear-gradient(135deg, rgba(15,42,26,0.8) 0%, rgba(19,77,46,0.6) 100%)",
-            border: "1.5px solid rgba(74,222,128,0.3)",
-          }}
-        >
-          {emoji || "🏷️"}
-        </div>
-        <h3 className="text-sm font-bold text-slate-100">{name}</h3>
+        <h3 className="text-base font-bold text-slate-100">{name}</h3>
         {tokenId && (
-          <span className="text-[10px] font-mono text-slate-400 mt-0.5">
+          <span className="text-[10px] font-mono text-purple-300 mt-0.5">
             Token #{tokenId}
           </span>
         )}
@@ -91,7 +80,7 @@ export default function NFTCard({
                     : "bg-purple-500 hover:bg-purple-400 text-black cursor-pointer shadow-lg shadow-purple-500/20"
                 }`}
               >
-                {isAuctionActive ? "In Auction" : "List for Sale ⚡"}
+                {isAuctionActive ? "In Auction" : "List for Sale"}
               </button>
             )}
           </div>

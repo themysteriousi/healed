@@ -12,17 +12,8 @@ export default function NFTPreview({ txHash, tokenId, smartAddress, selectedNFT 
 
   return (
     <div className="rounded-xl border border-green-500/30 bg-gradient-to-br from-green-950/40 to-slate-900/60 p-4 animate-slide-in-up">
-      {/* Badge icon */}
-      <div className="flex items-center gap-3 mb-4">
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shrink-0 glow-green-sm"
-          style={{
-            background: "linear-gradient(135deg, #0f2a1a 0%, #134d2e 100%)",
-            border: "1.5px solid rgba(74,222,128,0.4)",
-          }}
-        >
-          🏅
-        </div>
+      {/* Badge title */}
+      <div className="mb-4">
         <div>
           <p className="text-sm font-bold text-white">{nftName}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">

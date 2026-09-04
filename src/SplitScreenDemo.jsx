@@ -54,12 +54,6 @@ export default function SplitScreenDemo() {
       {/* ── top bar ── */}
       <header className="border-b border-slate-800/80 glass px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
-            style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)" }}
-          >
-            ⛽
-          </div>
           <div>
             <span className="text-sm font-bold text-white">Universal Gas Framework</span>
             <span className="ml-2 text-[10px] text-green-400 font-semibold uppercase tracking-wider">
@@ -181,7 +175,6 @@ export default function SplitScreenDemo() {
               <LeftPanel />
             </div>
             <div className={activeTab === "swap" ? "flex flex-col items-center justify-center h-full text-center" : "hidden"}>
-              <span className="text-4xl mb-4">🌉</span>
               <h3 className="text-red-400 font-bold mb-2">The Old Way: Bridging</h3>
               <p className="text-xs text-slate-400 max-w-xs">Buy ETH &rarr; Bridge to Arbitrum &rarr; Wait 15 mins &rarr; Buy ARB Gas &rarr; Swap on DEX.</p>
             </div>

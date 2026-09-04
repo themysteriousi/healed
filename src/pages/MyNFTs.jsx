@@ -137,7 +137,7 @@ export default function MyNFTs({ onNavigate }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <span>🖼️</span> My Minted NFTs
+            My Minted NFTs
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             All your gaslessly minted credentials and assets on Base Sepolia.
@@ -148,7 +148,7 @@ export default function MyNFTs({ onNavigate }) {
             onClick={() => onNavigate("auction")}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-500 hover:bg-purple-400 text-black transition-all cursor-pointer shadow-lg shadow-purple-500/20"
           >
-            ⚡ View Auction Marketplace
+            View Auction Marketplace
           </button>
         </div>
       </div>
@@ -169,7 +169,6 @@ export default function MyNFTs({ onNavigate }) {
       {/* NFT Grid or Empty State */}
       {!isConnected ? (
         <div className="glass rounded-2xl p-12 text-center border border-slate-800 flex flex-col items-center justify-center">
-          <span className="text-4xl mb-3">👛</span>
           <h3 className="text-base font-bold text-slate-200">Connect Your Wallet</h3>
           <p className="text-xs text-slate-500 max-w-sm mt-1">
             Connect your wallet to view your minted NFTs and list them on the zero-gas auction marketplace.
@@ -177,7 +176,6 @@ export default function MyNFTs({ onNavigate }) {
         </div>
       ) : mintedList.length === 0 ? (
         <div className="glass rounded-2xl p-12 text-center border border-slate-800 flex flex-col items-center justify-center">
-          <span className="text-4xl mb-3">🏷️</span>
           <h3 className="text-base font-bold text-slate-200">No Minted NFTs Yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
             You haven't minted any badges or tokens yet. Head over to the Badge Minter to mint your first gasless NFT!
@@ -210,7 +208,7 @@ export default function MyNFTs({ onNavigate }) {
           <div className="glass rounded-2xl border border-purple-500/40 p-6 max-w-md w-full bg-slate-950 shadow-2xl animate-slide-in-up">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span>⚡</span> List for Gasless Auction
+                List for Gasless Auction
               </h3>
               <button
                 onClick={() => setSelectedForAuction(null)}
@@ -220,12 +218,9 @@ export default function MyNFTs({ onNavigate }) {
               </button>
             </div>
 
-            <div className="my-4 p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-              <span className="text-3xl">{selectedForAuction.emoji}</span>
-              <div>
-                <h4 className="text-sm font-bold text-white">{selectedForAuction.name}</h4>
-                <p className="text-[11px] text-slate-400">Token #{selectedForAuction.tokenId}</p>
-              </div>
+            <div className="my-4 p-3 rounded-xl bg-slate-900 border border-slate-800">
+              <h4 className="text-sm font-bold text-white">{selectedForAuction.name}</h4>
+              <p className="text-[11px] text-slate-400">Token #{selectedForAuction.tokenId}</p>
             </div>
 
             <form onSubmit={handleCreateAuction} className="space-y-4">
@@ -261,7 +256,7 @@ export default function MyNFTs({ onNavigate }) {
               </div>
 
               <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/30 text-[11px] text-purple-300">
-                ⚡ <strong>Zero-Gas Bidding:</strong> Bidders will sign off-chain EIP-712 typed signatures without paying any on-chain gas. Settlement is handled by UGF relayers.
+                <strong>Zero-Gas Bidding:</strong> Bidders will sign off-chain EIP-712 typed signatures without paying any on-chain gas. Settlement is handled by UGF relayers.
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -277,7 +272,7 @@ export default function MyNFTs({ onNavigate }) {
                   disabled={isListing}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-purple-500 hover:bg-purple-400 text-black cursor-pointer shadow-lg shadow-purple-500/20 disabled:opacity-50"
                 >
-                  {isListing ? "Creating Auction…" : "Confirm Listing 🚀"}
+                  {isListing ? "Creating Auction…" : "Confirm Listing"}
                 </button>
               </div>
             </form>

@@ -49,7 +49,7 @@ export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-slate-800">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <span>⚡</span> Gasless NFT Auction House
+            Gasless NFT Auction House
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Off-chain EIP-712 bidding with zero ETH gas. Instant UGF sponsored settlement.
@@ -100,7 +100,6 @@ export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }
               </div>
             ) : filteredAuctions.length === 0 ? (
               <div className="glass rounded-xl p-8 text-center text-slate-500 text-xs flex flex-col items-center">
-                <span className="text-3xl mb-2">🏷️</span>
                 <p>No {filter} auctions found.</p>
                 <button
                   onClick={() => onNavigate("my-nfts")}
@@ -124,16 +123,11 @@ export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }
                         : "border-slate-800 bg-slate-950/40 hover:border-slate-700"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl p-1.5 rounded-lg bg-slate-900 border border-slate-800">
-                        {a.nft_emoji || "🏷️"}
+                    <div>
+                      <h4 className="text-xs font-bold text-white">{a.nft_name}</h4>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Token #{a.token_id}
                       </span>
-                      <div>
-                        <h4 className="text-xs font-bold text-white">{a.nft_name}</h4>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          Token #{a.token_id}
-                        </span>
-                      </div>
                     </div>
 
                     <div className="text-right">
