@@ -1,6 +1,6 @@
 // ─── Contract addresses (filled from .env after deployment) ──────────────────
-export const MUSD_ADDRESS = import.meta.env.VITE_MUSD_ADDRESS;
-export const BADGE_NFT_ADDRESS = import.meta.env.VITE_BADGE_NFT_ADDRESS;
+export const MUSD_ADDRESS = import.meta.env.VITE_MUSD_ADDRESS || "0x27DC1C167AeF232bb1e21073304B526726a8727e";
+export const BADGE_NFT_ADDRESS = import.meta.env.VITE_BADGE_NFT_ADDRESS || "0x7570BF6Fe30d30839bB22d1F3bd6a5f5F12C7C1e";
 
 // ─── UGF Official Registry MUSD address (Base Sepolia) ───────────────────────
 // This is the TRUE official Hackathon MUSD token dispensed by the UGF Faucet.

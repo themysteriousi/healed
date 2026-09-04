@@ -6,12 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-/// @title BadgeNFT – Hackathon 2025 Finisher badge, paid in MUSD
+/// @title BadgeNFT – Hackathon 2025 Finisher badge, paid gaslessly in MUSD via UGF
 contract BadgeNFT is ERC721 {
     using Strings for uint256;
-
-    IERC20 public immutable musd;
-    uint256 public constant MINT_FEE = 8 * 10 ** 4; // 0.08 MUSD (6 decimals: 80_000)
 
     uint256 private _tokenIdCounter;
 
@@ -19,24 +16,10 @@ contract BadgeNFT is ERC721 {
 
     event BadgeMinted(address indexed to, uint256 tokenId);
 
-    constructor(address _musd) ERC721("Hackathon 2025 Finisher", "HF25") {
-        musd = IERC20(_musd);
-    }
+    constructor() ERC721("Hackathon 2025 Finisher", "HF25") {}
 
-    /// @notice Claim one badge per wallet. Caller must approve MINT_FEE first.
+    /// @notice Claim a badge gaslessly via Universal Gas Framework
     function claimBadge() external returns (uint256 tokenId) {
-        require(!hasClaimed[msg.sender], "BadgeNFT: already claimed");
-        require(
-            musd.allowance(msg.sender, address(this)) >= MINT_FEE,
-            "BadgeNFT: insufficient MUSD allowance"
-        );
-        require(
-            musd.balanceOf(msg.sender) >= MINT_FEE,
-            "BadgeNFT: insufficient MUSD balance"
-        );
-
-        musd.transferFrom(msg.sender, address(this), MINT_FEE);
-
         tokenId = ++_tokenIdCounter;
         hasClaimed[msg.sender] = true;
         _mint(msg.sender, tokenId);
@@ -50,7 +33,7 @@ contract BadgeNFT is ERC721 {
         bytes memory json = abi.encodePacked(
             '{"name":"Hackathon 2025 Finisher #', tokenId.toString(), '",',
             '"description":"Minted gaslessly via Universal Gas Framework on Base Sepolia.",',
-            '"image":"ipfs://QmUGFBadgePlaceholderHashReplaceWithReal",',
+            '"image":"https://api.dicebear.com/7.x/shapes/svg?seed=', tokenId.toString(), '",',
             '"attributes":[',
             '{"trait_type":"Edition","value":"Hackathon 2025"},',
             '{"trait_type":"Minted Via","value":"Universal Gas Framework"},',
