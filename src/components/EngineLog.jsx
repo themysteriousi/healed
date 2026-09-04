@@ -19,6 +19,15 @@ const SWAP_STEPS = [
   { id: 5, label: "Confirmed ✓",      color: "text-green-400" },
 ];
 
+const AUCTION_STEPS = [
+  { id: 0, label: "Idle",                     color: "text-slate-400" },
+  { id: 1, label: "Signing Bid Intent",       color: "text-blue-400"  },
+  { id: 2, label: "Broadcasting to Pool",     color: "text-yellow-400"},
+  { id: 3, label: "Verifying Signature",      color: "text-purple-400"},
+  { id: 4, label: "Settling via UGF Relayer", color: "text-orange-400"},
+  { id: 5, label: "NFT Transferred ✓",        color: "text-green-400" },
+];
+
 const LOG_COLORS = {
   info:    "text-blue-300",
   warn:    "text-yellow-300",
@@ -45,7 +54,7 @@ export default function EngineLog({ step, logs, activeTab }) {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  const steps = activeTab === "swap" ? SWAP_STEPS : MINT_STEPS;
+  const steps = activeTab === "auction" ? AUCTION_STEPS : activeTab === "swap" ? SWAP_STEPS : MINT_STEPS;
   const maxStep = steps.length - 1;
   const progress = Math.round((Math.min(step, maxStep) / maxStep) * 100);
 

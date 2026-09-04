@@ -31,7 +31,7 @@ export function useUGFMint() {
   const publicClient = usePublicClient();
   const log = useCallback((...args) => createLogger(setLogs)(...args), []);
 
-  const mint = useCallback(async () => {
+  const mint = useCallback(async (selectedNFT = null) => {
     if (!walletClient || !publicClient || isLoading) return;
 
     setIsLoading(true);
@@ -129,8 +129,9 @@ export function useUGFMint() {
       // ── STEP 4 · CONFIRMED ──────────────────────────────────────────────────
       setStep(STEP.CONFIRMED);
       
-      // Optimistically deduct the demo UGF gas cost (0.08 MUSD) from our local UI balance
-      recordPendingDeduction(0.08);
+      // Optimistically deduct the demo UGF gas/mint cost from our local UI balance
+      const deductAmount = selectedNFT?.priceMUSD ?? 0.08;
+      recordPendingDeduction(deductAmount);
       
       // We can use viem's publicClient to get the logs for the UI
       log("Fetching receipt to find Token ID…", "info", "INDEX");
@@ -143,8 +144,13 @@ export function useUGFMint() {
       if (mintLog && mintLog.data && mintLog.data !== "0x") {
         const id = BigInt(mintLog.data).toString();
         setTokenId(id);
-        log(`Successfully minted Hackathon Badge #${id}!`, "success", "OK");
+        sessionStorage.setItem("lastMintedTokenId", id);
+        if (selectedNFT) {
+          sessionStorage.setItem("lastMintedNFT", JSON.stringify({ ...selectedNFT, tokenId: id }));
+        }
+        log(`Successfully minted ${selectedNFT?.name || "Hackathon Badge"} #${id}!`, "success", "OK");
       } else {
+        sessionStorage.setItem("lastMintedTokenId", "1");
         log("Mint successful, Token ID not found in receipt logs.", "warn", "OK");
       }
 
