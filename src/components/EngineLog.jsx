@@ -58,6 +58,16 @@ export default function EngineLog({ step, logs, activeTab }) {
   const maxStep = steps.length - 1;
   const progress = Math.round((Math.min(step, maxStep) / maxStep) * 100);
 
+  // Find dynamic price string from logs (e.g. "$1.10 MUSD", "$1.00 MUSD", "$5.00 MUSD")
+  const priceLogEntry = logs.slice().reverse().find((l) => l.msg && l.msg.includes("MUSD"));
+  let displayPrice = "$0.08 MUSD";
+  if (priceLogEntry?.msg) {
+    const match = priceLogEntry.msg.match(/\$(\d+(\.\d+)?)\s*MUSD/i);
+    if (match) {
+      displayPrice = `$${match[1]} MUSD`;
+    }
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* title bar */}
@@ -94,17 +104,15 @@ export default function EngineLog({ step, logs, activeTab }) {
               {/* Dynamic visualization blocks for active steps */}
               {isActive && s.label === "Approve MUSD" && (
                 <div className="ml-5 mt-1 mb-2 p-2 rounded-lg border border-yellow-500/40 bg-gradient-to-r from-yellow-900/30 to-transparent flex items-start gap-2 animate-pulse">
-                  <span className="text-base mt-0.5">💳</span>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wide">Signing Payment Intent</span>
-                    <span className="text-[9px] text-yellow-200/70">Authorizing 0.08 MUSD off-chain payment. No gas required.</span>
+                    <span className="text-[9px] text-yellow-200/70">Authorizing {displayPrice} off-chain payment. No gas required.</span>
                   </div>
                 </div>
               )}
 
               {isActive && (s.label === "Settle Intent" || s.label === "Bridge / Settle") && (
                 <div className="ml-5 mt-1 mb-2 p-2 rounded-lg border border-purple-500/40 bg-gradient-to-r from-purple-900/30 to-transparent flex items-start gap-2 animate-pulse">
-                  <span className="text-base mt-0.5 animate-spin-slow">📡</span>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wide">Routing Intent</span>
                     <span className="text-[9px] text-purple-200/70">Sending cryptographically signed intent to UGF node network...</span>
@@ -115,7 +123,6 @@ export default function EngineLog({ step, logs, activeTab }) {
               {isActive && s.label === "Execute On-chain" && (
                 <div className="ml-5 mt-1 mb-2 p-2.5 rounded-lg border border-orange-500/50 bg-gradient-to-r from-orange-900/40 to-transparent flex items-start gap-2 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1 h-full bg-orange-500 animate-pulse" />
-                  <span className="text-lg mt-0.5 animate-bounce">⛽</span>
                   <div className="flex flex-col relative z-10">
                     <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">Injecting Sponsored Gas</span>
                     <span className="text-[9px] text-orange-200">UGF Relayers are pre-funding your wallet with ETH to cover the native network fee...</span>
@@ -163,13 +170,12 @@ export default function EngineLog({ step, logs, activeTab }) {
         <div className="mt-3 rounded-xl border border-green-400/50 bg-gradient-to-br from-green-900/40 to-slate-900/60 p-3 text-center animate-slide-in-up relative overflow-hidden shadow-[0_0_20px_rgba(74,222,128,0.15)]">
           <div className="absolute inset-0 bg-green-400/5 shimmer-overlay" />
           <div className="relative z-10 flex flex-col items-center gap-2">
-            <span className="text-2xl">✨</span>
             <span className="text-xs font-black text-green-300 uppercase tracking-widest">Transaction Successful</span>
             
             <div className="w-full mt-2 grid grid-cols-2 gap-2 text-left">
               <div className="bg-slate-950/50 rounded-lg p-2 border border-slate-700/50">
                 <span className="block text-[9px] text-slate-500 uppercase">You Paid</span>
-                <span className="block text-xs font-bold text-yellow-400">$0.08 MUSD</span>
+                <span className="block text-xs font-bold text-yellow-400">{displayPrice}</span>
               </div>
               <div className="bg-green-950/30 rounded-lg p-2 border border-green-500/30">
                 <span className="block text-[9px] text-green-500/70 uppercase">Native Gas Cost</span>

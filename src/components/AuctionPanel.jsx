@@ -139,13 +139,18 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
 
   const handleSettleAuction = async () => {
     setIsSettling(true);
-    setStatusMsg({ type: "info", text: "Verifying winning EIP-712 signature & settling NFT on-chain..." });
+
+    const winningBidder = auction.current_bidder || bids[0]?.bidder || address || "0x0000000000000000000000000000000000000000";
+    const winningAmount = auction.current_bid || bids[0]?.amount || auction.start_price || "0.08";
+    const amountFormatted = parseFloat(winningAmount).toFixed(2);
+
+    setStatusMsg({ type: "info", text: `Verifying winning EIP-712 signature ($${amountFormatted} MUSD) & settling NFT on-chain...` });
 
     try {
       if (onStepChange) onStepChange(3);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: `Verifying winning bidder (${auction.current_bidder?.slice(0, 6)}…) EIP-712 signature off-chain...`, type: "info", tag: "VERIFY" },
+        { msg: `Verifying winning bidder (${winningBidder.slice(0, 6)}…) EIP-712 signature for $${amountFormatted} MUSD off-chain...`, type: "info", tag: "VERIFY" },
       ]);
 
       await new Promise(r => setTimeout(r, 600));
@@ -153,12 +158,12 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
       if (onStepChange) onStepChange(4);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: `Transferring Token #${auction.token_id} to winning wallet ${auction.current_bidder} on Base Sepolia...`, type: "info", tag: "RELAY" },
+        { msg: `Transferring Token #${auction.token_id} ($${amountFormatted} MUSD) to winning wallet ${winningBidder.slice(0, 6)}…${winningBidder.slice(-4)} on Base Sepolia...`, type: "info", tag: "RELAY" },
       ]);
 
       let txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
-      if (walletClient && auction.seller && auction.current_bidder) {
+      if (walletClient && auction.seller && winningBidder) {
         try {
           const signer = await walletClientToSigner(walletClient);
           const badgeContract = new Contract(BADGE_NFT_ADDRESS, BADGE_NFT_ABI, signer);
@@ -166,7 +171,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
           // Execute on-chain transfer to the winning wallet
           const tx = await badgeContract.transferFrom(
             auction.seller,
-            auction.current_bidder,
+            winningBidder,
             BigInt(auction.token_id)
           );
           const receipt = await tx.wait();
@@ -183,10 +188,10 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
       if (onStepChange) onStepChange(5);
       if (onLogsChange) onLogsChange((prev) => [
         ...prev,
-        { msg: `✓ Auction settled! NFT Token #${auction.token_id} transferred to ${auction.current_bidder}. Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
+        { msg: `✓ Auction settled for $${amountFormatted} MUSD! NFT Token #${auction.token_id} transferred to ${winningBidder.slice(0, 6)}…${winningBidder.slice(-4)}. Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
       ]);
 
-      setStatusMsg({ type: "success", text: `🎉 Auction settled! NFT Token #${auction.token_id} transferred on-chain to ${auction.current_bidder}.` });
+      setStatusMsg({ type: "success", text: `🎉 Auction settled for $${amountFormatted} MUSD! NFT Token #${auction.token_id} transferred on-chain to ${winningBidder.slice(0, 6)}…${winningBidder.slice(-4)}.` });
       if (onSettle) onSettle();
     } catch (err) {
       setStatusMsg({ type: "error", text: "Settlement failed: " + err.message });
@@ -271,7 +276,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
           </span>
           {isConnected ? (
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-green-950 text-green-400 border border-green-700 font-semibold">
-              {isUserSeller ? "👑 Seller Connected" : "🛒 Buyer Connected"}
+              {isUserSeller ? "Seller Connected" : "Buyer Connected"}
             </span>
           ) : (
             <span className="text-[10px] font-mono text-yellow-400">
@@ -315,20 +320,29 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
               <span className="absolute right-3 top-2.5 text-xs text-slate-500 font-mono">MUSD</span>
             </div>
 
-            {/* Target Buyer Wallet Address field */}
+            {/* Target Buyer Wallet Address field with quick presets */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-slate-400 font-mono flex items-center justify-between">
-                <span>Buyer Wallet Address (MetaMask / Virtual Wallet):</span>
-                {address && (
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>Buyer Wallet Address:</span>
+                <div className="flex gap-2">
+                  {address && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomBidderAddress(address)}
+                      className="text-[9px] text-purple-400 hover:underline cursor-pointer"
+                    >
+                      Connected Wallet
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setCustomBidderAddress(address)}
-                    className="text-[9px] text-purple-400 hover:underline cursor-pointer"
+                    onClick={() => setCustomBidderAddress("0x71Ca1234567890abcdef1234567890a82F")}
+                    className="text-[9px] text-blue-400 hover:underline cursor-pointer"
                   >
-                    Use connected wallet
+                    Buyer #2
                   </button>
-                )}
-              </label>
+                </div>
+              </div>
               <input
                 type="text"
                 placeholder="0x..."
@@ -361,7 +375,6 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
                 disabled={isSettling}
                 className="w-full py-2 rounded-xl text-[11px] font-bold bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/40 transition-all cursor-pointer shadow-lg flex items-center justify-center gap-1.5"
               >
-                <span>⚡</span>
                 <span>{isSettling ? "Settling on-chain via UGF Relayer…" : `Settle Highest Bid ($${currentBid.toFixed(2)}) Now →`}</span>
               </button>
             </div>
