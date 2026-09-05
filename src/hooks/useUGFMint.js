@@ -155,7 +155,6 @@ export function useUGFMint() {
           name: "Hacker Pass",
           priceMUSD: 0.08,
           priceDisplay: "$0.08",
-          emoji: "🏷️",
         }),
         tokenId: id,
         contractAddress: BADGE_NFT_ADDRESS,

@@ -191,7 +191,7 @@ export default function AuctionPanel({ auction, onBidPlaced, onSettle, onStepCha
         { msg: `✓ Auction settled for $${amountFormatted} MUSD! NFT Token #${auction.token_id} transferred to ${winningBidder.slice(0, 6)}…${winningBidder.slice(-4)}. Tx: ${txHash.slice(0, 14)}…`, type: "success", tag: "OK" },
       ]);
 
-      setStatusMsg({ type: "success", text: `🎉 Auction settled for $${amountFormatted} MUSD! NFT Token #${auction.token_id} transferred on-chain to ${winningBidder.slice(0, 6)}…${winningBidder.slice(-4)}.` });
+      setStatusMsg({ type: "success", text: `Auction settled for $${amountFormatted} MUSD. NFT Token #${auction.token_id} transferred on-chain to ${winningBidder.slice(0, 6)}...${winningBidder.slice(-4)}.` });
       if (onSettle) onSettle();
     } catch (err) {
       setStatusMsg({ type: "error", text: "Settlement failed: " + err.message });

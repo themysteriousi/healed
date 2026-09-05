@@ -158,8 +158,8 @@ export default function EngineLog({ step, logs, activeTab }) {
         )}
         {logs.map((entry, i) => (
           <div key={i} className={`flex gap-2 px-1 py-0.5 rounded log-entry ${LOG_COLORS[entry.type] ?? "text-slate-400"}`}>
-            <span className="text-slate-600 shrink-0">{entry.time}</span>
-            <span className="text-slate-500 shrink-0">[{entry.level}]</span>
+            <span className="text-slate-600 shrink-0">{entry.time || new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+            <span className="text-slate-500 shrink-0">[{entry.level || entry.tag || "INFO"}]</span>
             <span className="break-all">{entry.msg}</span>
           </div>
         ))}

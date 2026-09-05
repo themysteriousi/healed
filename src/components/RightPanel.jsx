@@ -219,7 +219,7 @@ export default function RightPanel({ onStepChange, onLogsChange, onNavigate }) {
                     Processing Gasless Mint…
                   </span>
                 ) : (
-                  `Mint ${selectedNFT?.name} · Pay ${selectedNFT?.priceDisplay} USD (0 ETH)`
+                  `Mint ${selectedNFT?.name} · Pay ${selectedNFT?.priceDisplay} MUSD (0 ETH)`
                 )}
               </button>
             )}

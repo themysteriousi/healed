@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { dbGetAuctions } from "../lib/supabase.js";
 import AuctionPanel from "../components/AuctionPanel.jsx";
 
@@ -8,18 +8,25 @@ export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("active"); // 'active' | 'all' | 'settled'
 
-  // Fetch all auctions
+  // Use a ref so fetchAuctions doesn't need selectedAuction in its dep array
+  const selectedAuctionRef = useRef(selectedAuction);
+  useEffect(() => {
+    selectedAuctionRef.current = selectedAuction;
+  }, [selectedAuction]);
+
+  // Fetch all auctions — stable callback, no selectedAuction dependency
   const fetchAuctions = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await dbGetAuctions();
       if (data) {
         setAuctions(data);
-        if (!selectedAuction && data.length > 0) {
+        const current = selectedAuctionRef.current;
+        if (!current && data.length > 0) {
           const liveOne = data.find((a) => !a.settled) || data[0];
           setSelectedAuction(liveOne);
-        } else if (selectedAuction) {
-          const updated = data.find((a) => a.id === selectedAuction.id);
+        } else if (current) {
+          const updated = data.find((a) => a.id === current.id);
           if (updated) setSelectedAuction(updated);
         }
       }
@@ -28,7 +35,7 @@ export default function AuctionMarket({ onNavigate, onStepChange, onLogsChange }
     } finally {
       setIsLoading(false);
     }
-  }, [selectedAuction]);
+  }, []); // stable — no deps
 
   useEffect(() => {
     fetchAuctions();

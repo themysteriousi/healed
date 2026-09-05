@@ -13,7 +13,7 @@ export async function dbCreateAuction(auctionData) {
     nft_contract: auctionData.nft_contract,
     token_id: String(auctionData.token_id),
     nft_name: auctionData.nft_name || "Hackathon Badge",
-    nft_emoji: auctionData.nft_emoji || "🏷️",
+    nft_emoji: auctionData.nft_emoji || "",
     start_price: parseFloat(auctionData.start_price),
     min_increment: 0.01,
     current_bid: parseFloat(auctionData.start_price),
